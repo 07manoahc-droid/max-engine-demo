@@ -1,6 +1,6 @@
 # MAx Engine
 
-Logiciel de gestion pour un petit garage d'achat-revente de motos d'occasion, tenu par deux associés sur leur temps libre. Il suit chaque véhicule de l'achat à la vente, enregistre les dépenses et les factures, et partage l'argent à parts égales entre les associés, au centime près.
+Logiciel de gestion pour un petit garage d'achat-revente de motos d'occasion, tenu par moi et mon associé sur notre temps libre. Il suit chaque véhicule de l'achat à la vente, enregistre les dépenses et les factures, et partage l'argent à parts égales entre les associés, au centime près.
 
 *English version: [README.en.md](README.en.md).*
 
@@ -8,14 +8,14 @@ Logiciel de gestion pour un petit garage d'achat-revente de motos d'occasion, te
 
 ## Le problème
 
-Les deux associés suivaient leur activité dans un classeur Excel : un registre des motos, un journal des dépenses et une feuille de bilan qui calculait qui doit combien à qui. Le classeur montrait ses limites :
+La gestion était suivie dans un classeur Excel : un registre des motos, un journal des dépenses et une feuille de bilan qui calculait qui doit combien à qui. Seulement, ce classeur montrait ses limites :
 
 - une commande groupée (plusieurs pièces, un seul paiement, des frais de port) se saisissait mal, et les frais de port ne se répartissaient pas sur les pièces ;
 - chacun paie selon ses moyens du moment, mais le but est de toujours gagner ou perdre la même somme : le calcul d'égalisation devait être juste au centime, et le rester après une correction ;
 - rien ne gardait la trace d'une modification ou d'une suppression ;
 - l'associé qui fait la saisie au quotidien n'est pas à l'aise avec l'informatique : il lui fallait des écrans évidents, sans formule à protéger.
 
-MAx Engine remplace ce classeur par une application locale, utilisée sur un seul portable Windows, sans Internet.
+MAx Engine remplace ce classeur par une application locale, utilisée sur un pc portable Windows, sans Internet.
 
 ## Ce que fait le logiciel
 
