@@ -1,0 +1,205 @@
+/*
+ * Feuille source Tailwind de MAx Engine : jetons de la charte graphique.
+ * Le CSS construit (static/css/tailwind.css) est commité : `uv run python manage.py tailwind build`.
+ * Les couleurs claires sont dans :root, les sombres sous .dark (classe posée sur <html>).
+ * Aucune couleur en dur dans les gabarits : utiliser les classes générées (bg-surface, text-muted…).
+ */
+@import "tailwindcss";
+
+@source "../templates";
+@source "../core/ui.py";
+
+@custom-variant dark (&:where(.dark, .dark *));
+/* Barre latérale repliée (classe posée sur <html>) : `collapsed:hidden`, `collapsed:w-16`… */
+@custom-variant collapsed (&:where(.sidebar-collapsed *));
+
+@font-face {
+  font-family: "Manrope";
+  font-style: normal;
+  font-weight: 200 800;
+  font-display: swap;
+  src: url("../vendor/manrope/manrope-latin-wght-normal.woff2") format("woff2");
+}
+
+/* Mode clair. `color-scheme` : les éléments natifs du navigateur (liste de suggestions,
+   calendrier, barres de défilement) suivent le mode choisi. */
+:root {
+  color-scheme: light;
+  --page: #f6f7f9;
+  --surface: #ffffff;
+  --sidebar: #ffffff;
+  --border: #e5e7eb;
+  --ink: #111827;
+  --muted: #6b7280;
+  --accent: #2563eb;
+  --accent-bg: #eaf1ff;
+  --accent-ink: #1d4ed8;
+  --danger: #b91c1c;
+
+  --status-gray-bg: #f1f2f4;
+  --status-gray-fg: #4b5563;
+  --status-sky-bg: #e0f2fe;
+  --status-sky-fg: #0369a1;
+  --status-amber-bg: #fef3c7;
+  --status-amber-fg: #92400e;
+  --status-violet-bg: #ede9fe;
+  --status-violet-fg: #5b21b6;
+  --status-green-bg: #dcfce7;
+  --status-green-fg: #166534;
+  --status-pink-bg: #fce7f3;
+  --status-pink-fg: #9d174d;
+  --status-slate-bg: #e2e8f0;
+  --status-slate-fg: #334155;
+  --status-red-bg: #fee2e2;
+  --status-red-fg: #991b1b;
+
+  --partner-indigo-bg: #e0e7ff;
+  --partner-indigo-fg: #3730a3;
+  --partner-teal-bg: #ccfbf1;
+  --partner-teal-fg: #0f766e;
+}
+
+/* Mode sombre : mêmes noms, teintes assombries */
+.dark {
+  color-scheme: dark;
+  --page: #0f1115;
+  --surface: #181d25;
+  --sidebar: #151920;
+  --border: #2a303a;
+  --ink: #e5e7eb;
+  --muted: #9aa1ac;
+  --accent: #2563eb;
+  --accent-bg: #1a2a4d;
+  --accent-ink: #9bbcff;
+  --danger: #fca5a5;
+
+  --status-gray-bg: #262a31;
+  --status-gray-fg: #c2c7cf;
+  --status-sky-bg: #0c2a3d;
+  --status-sky-fg: #7cc4f0;
+  --status-amber-bg: #3a2a0a;
+  --status-amber-fg: #fbbf5a;
+  --status-violet-bg: #2a2350;
+  --status-violet-fg: #c4b5fd;
+  --status-green-bg: #12321f;
+  --status-green-fg: #86efac;
+  --status-pink-bg: #3a1529;
+  --status-pink-fg: #f9a8d4;
+  --status-slate-bg: #253041;
+  --status-slate-fg: #cbd5e1;
+  --status-red-bg: #3b1414;
+  --status-red-fg: #fca5a5;
+
+  --partner-indigo-bg: #1f2452;
+  --partner-indigo-fg: #a5b4fc;
+  --partner-teal-bg: #0f302c;
+  --partner-teal-fg: #5eead4;
+}
+
+/* « inline » : les utilitaires lisent la variable au moment de l'affichage, donc le mode sombre fonctionne. */
+@theme inline {
+  --font-sans: "Manrope", ui-sans-serif, system-ui, sans-serif;
+  --radius-control: 6px;
+  --radius-card: 8px;
+
+  --color-page: var(--page);
+  --color-surface: var(--surface);
+  --color-sidebar: var(--sidebar);
+  --color-border: var(--border);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-bg: var(--accent-bg);
+  --color-accent-ink: var(--accent-ink);
+  --color-danger: var(--danger);
+
+  --color-status-gray-bg: var(--status-gray-bg);
+  --color-status-gray-fg: var(--status-gray-fg);
+  --color-status-sky-bg: var(--status-sky-bg);
+  --color-status-sky-fg: var(--status-sky-fg);
+  --color-status-amber-bg: var(--status-amber-bg);
+  --color-status-amber-fg: var(--status-amber-fg);
+  --color-status-violet-bg: var(--status-violet-bg);
+  --color-status-violet-fg: var(--status-violet-fg);
+  --color-status-green-bg: var(--status-green-bg);
+  --color-status-green-fg: var(--status-green-fg);
+  --color-status-pink-bg: var(--status-pink-bg);
+  --color-status-pink-fg: var(--status-pink-fg);
+  --color-status-slate-bg: var(--status-slate-bg);
+  --color-status-slate-fg: var(--status-slate-fg);
+  --color-status-red-bg: var(--status-red-bg);
+  --color-status-red-fg: var(--status-red-fg);
+
+  --color-partner-indigo-bg: var(--partner-indigo-bg);
+  --color-partner-indigo-fg: var(--partner-indigo-fg);
+  --color-partner-teal-bg: var(--partner-teal-bg);
+  --color-partner-teal-fg: var(--partner-teal-fg);
+}
+
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-border);
+  }
+
+  /* Texte courant de 14 px (charte) ; les tailles en rem restent calculées sur 16 px. */
+  body {
+    font-family: var(--font-sans);
+    font-size: 0.875rem;
+    line-height: 1.5;
+  }
+
+  /* Focus clavier toujours visible (anneau bleu de l'accent). */
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+
+  /* Alpine masque les éléments x-cloak jusqu'à son démarrage. */
+  [x-cloak] {
+    display: none !important;
+  }
+}
+
+/* Boutons et champs de la charte, partagés par tous les écrans. */
+@layer components {
+  /* Bouton principal : un seul par écran. */
+  .btn-primary {
+    @apply inline-flex min-h-10 items-center justify-center gap-2 rounded-control bg-accent px-4 text-sm font-semibold text-white hover:opacity-90;
+  }
+  /* Action prévue mais pas encore disponible. */
+  .btn-primary[aria-disabled="true"] {
+    @apply cursor-not-allowed bg-border text-muted hover:opacity-100;
+  }
+  .btn-secondary {
+    @apply inline-flex min-h-10 items-center justify-center gap-2 rounded-control border border-border bg-surface px-4 text-sm font-semibold text-ink hover:bg-page;
+  }
+  .btn-secondary[aria-disabled="true"] {
+    @apply cursor-not-allowed text-muted hover:bg-surface;
+  }
+  /* Action lourde, toujours sur un écran de confirmation : texte rouge, jamais de fond bleu. */
+  .btn-danger {
+    @apply inline-flex min-h-10 items-center justify-center gap-2 rounded-control border border-danger bg-surface px-4 text-sm font-semibold text-danger hover:bg-page;
+  }
+  .btn-danger[aria-disabled="true"] {
+    @apply cursor-not-allowed border-border text-muted hover:bg-surface;
+  }
+
+  /* Champ de saisie (posé par `core.forms.StyledFormMixin`). */
+  .field-input {
+    @apply block min-h-10 w-full rounded-control border border-border bg-surface px-3 text-sm text-ink;
+  }
+  textarea.field-input {
+    @apply py-2;
+  }
+  .field-input[aria-invalid="true"] {
+    @apply border-danger;
+  }
+  /* Champ grisé : sa valeur est affichée mais ne se change pas ici. */
+  .field-input:disabled {
+    @apply cursor-not-allowed bg-page text-muted;
+  }
+}

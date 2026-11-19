@@ -1,0 +1,37 @@
+[project]
+name = "max-engine"
+version = "0.1.0"
+requires-python = ">=3.13"
+dependencies = [
+    "django>=5.2,<5.3",
+    "django-htmx>=1.29.0",
+    "django-simple-history>=3.13.0",
+    "django-tailwind-cli>=4.8.1",
+    "django-template-partials>=25.3",
+    "openpyxl>=3.1.5",
+    "pillow>=13.0.0",
+    "waitress>=3.0.2",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "pytest-django>=4.14.0",
+    "ruff>=0.17.3",
+]
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings"
+python_files = ["test_*.py"]
+testpaths = ["core", "vehicles", "expenses", "sales", "accounting"]
+markers = [
+    "finance: calculs d'argent (fonctions pures, lancés à chaque modification de code d'argent)",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+extend-exclude = ["*/migrations/*.py"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "DJ"]

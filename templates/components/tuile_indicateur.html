@@ -1,0 +1,11 @@
+{% load ui_tags %}{# Tuile d'indicateur : `label`, `value` déjà mis en forme ; `note` facultative (petite ligne sous la valeur) ; `partner` facultatif (fond à sa couleur) ; `href` facultatif (toute la tuile est un lien, `link_label` à droite du libellé). #}
+{% if href %}<a href="{{ href }}" class="block rounded-card border border-border bg-surface p-4 hover:border-accent">
+  {# Le séparateur caché évite qu'un lecteur d'écran lise « Bénéfice 2026Voir le bilan ». #}
+  <p class="flex items-center justify-between gap-2 text-[11px] font-semibold text-muted"><span>{{ label }}</span><span class="sr-only"> · </span><span class="text-accent-ink">{{ link_label }}</span></p>
+  <p class="mt-1 text-[22px] font-semibold leading-tight">{{ value }}</p>
+  {% if note %}<p class="mt-1 text-xs text-muted">{{ note }}</p>{% endif %}
+</a>{% else %}<div class="rounded-card border p-4 {% if partner %}border-transparent {{ partner.color|partner_badge }}{% else %}border-border bg-surface{% endif %}">
+  <p class="text-[11px] font-semibold {% if not partner %}text-muted{% endif %}">{{ label }}</p>
+  <p class="mt-1 text-[22px] font-semibold leading-tight">{{ value }}</p>
+  {% if note %}<p class="mt-1 text-xs {% if not partner %}text-muted{% endif %}">{{ note }}</p>{% endif %}
+</div>{% endif %}

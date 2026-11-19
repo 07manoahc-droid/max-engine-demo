@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{# D79 : un clic qui voulait modifier, en consultation. #}
+
+{% block title %}Consultation · {{ garage_name }}{% endblock %}
+
+{% block content %}
+<section class="flex max-w-xl flex-col gap-3 rounded-card border border-border bg-surface p-4">
+  <h1 class="flex items-center gap-2 text-xl font-semibold">
+    {% include "components/icone.html" with name="lock" class="size-5" %}Rien ne peut être modifié ici
+  </h1>
+  <p>Tu consultes une copie de la sauvegarde. Les ajouts et les corrections se font sur l'ordinateur d'Axel, dans MAx Engine.</p>
+  <a href="{% url 'core:home' %}" class="btn-secondary self-start">Revenir à l'accueil</a>
+</section>
+{% endblock %}

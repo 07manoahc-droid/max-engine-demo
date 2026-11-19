@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% load partials ui_tags %}
+
+{% block title %}{% if sale %}Modifier la vente{% else %}Enregistrer la vente{% endif %} · {{ garage_name }}{% endblock %}
+
+{% partialdef apercu %}
+{# Aperçu calculé par le serveur pendant la saisie (aucun calcul dans le navigateur). #}
+{% if preview.problem %}
+<p class="text-danger" role="alert">{{ preview.problem }}</p>
+{% elif preview %}
+<div class="flex flex-col gap-1">
+  <p class="flex justify-between gap-3 font-semibold">
+    <span>{% if editing %}Total des encaissements{% else %}Reste à encaisser{% endif %}</span>
+    <span class="tabular-nums">{{ preview.left_to_receive|euros }}</span>
+  </p>
+  {% if preview.is_loss %}
+  <p class="tabular-nums">Perte de {{ preview.shown_margin|euros }}</p>
+  {% else %}
+  <p class="flex justify-between gap-3">
+    <span class="text-muted">Marge</span>
+    <span class="tabular-nums">{{ preview.shown_margin|euros }}</span>
+  </p>
+  {% endif %}
+  {% if preview.kept_deposits %}
+  <p class="text-xs text-muted">Calculé avec {{ preview.kept_deposits|euros }} d'acomptes conservés</p>
+  {% endif %}
+  {% for partner, amount in preview_shares %}
+  <p class="flex justify-between gap-3">
+    <span class="text-muted">{% if preview.is_loss %}Perte pour{% else %}Pour{% endif %} {{ partner.name }}</span>
+    <span class="tabular-nums">{{ amount|euros }}</span>
+  </p>
+  {% endfor %}
+</div>
+{% if not preview.left_to_receive %}
+<p class="mt-1 text-xs text-muted">Il ne reste rien à encaisser : tu n'as pas à dire qui a encaissé.</p>
+{% endif %}
+{% endif %}
+{% endpartialdef %}
+
+{% block content %}
+<div class="flex max-w-2xl flex-col gap-3"
+     x-data="{ payeur: '{{ form.payer.value|default:''|escapejs }}', contact: '{{ form.buyer.value|default:''|escapejs }}', reprise: {% if form.has_trade_in.value %}true{% else %}false{% endif %}, envoi: false }">
+  <a href="{{ vehicle.get_absolute_url }}" class="inline-flex min-h-10 items-center gap-1 self-start text-sm text-accent-ink hover:underline">
+    {% include "components/icone.html" with name="arrow-left" class="size-4" %}Retour
+  </a>
+
+  <div>
+    <h1 class="text-xl font-semibold">{% if sale %}Modifier la vente{% else %}Enregistrer la vente{% endif %}</h1>
+    <p class="mt-1 break-words text-muted">{{ vehicle.display_name }}{% if not sale %} passera en « Vendu »{% endif %}.</p>
+  </div>
+
+  {# `envoi` désactive le bouton après le premier clic : un double-clic n'envoie pas deux ventes. #}
+  <form id="formulaire-vente" method="post" novalidate class="flex flex-col gap-3" @submit="envoi = true">
+    {% csrf_token %}
+    {% for error in form.non_field_errors %}
+    <p class="text-sm text-danger" role="alert">{{ error }}</p>
+    {% endfor %}
+
+    <section aria-label="Le prix" class="flex flex-col gap-4 rounded-card border border-border bg-surface p-4">
+      <div class="grid gap-4 sm:grid-cols-2">
+        {% include "components/champ_formulaire.html" with field=form.price %}
+        {% include "components/champ_formulaire.html" with field=form.date %}
+      </div>
+      {% if deposit %}
+      <p class="text-sm text-muted">Acompte de <span class="font-semibold tabular-nums">{{ deposit.total|euros }}</span> reçu par {{ deposit.receivers_label }} (réservé le {{ deposit.deposit.date|date:"d/m/Y" }}) : il est déduit du prix.</p>
+      {% endif %}
+      {% if sale %}
+      {% if sale.trade_in_vehicle %}
+      <p class="break-words text-sm text-muted">Reprise de <a href="{{ sale.trade_in_vehicle.get_absolute_url }}" class="text-accent-ink hover:underline">{{ sale.trade_in_vehicle.display_name }}</a> pour <span class="font-semibold tabular-nums">{{ sale.trade_in_value|euros }}</span> : elle est déduite du prix. Pour la corriger, annule la vente.</p>
+      {% endif %}
+      {% else %}
+      <div class="flex flex-col gap-1">
+        <label class="flex min-h-10 cursor-pointer items-start gap-3">
+          <input type="checkbox" name="{{ form.has_trade_in.html_name }}" id="{{ form.has_trade_in.id_for_label }}"
+                 class="mt-1 size-4 accent-accent" aria-describedby="{{ form.has_trade_in.auto_id }}_helptext"
+                 x-model="reprise" {% if form.has_trade_in.value %}checked{% endif %}>
+          <span>
+            <span class="font-semibold">{{ form.has_trade_in.label }}</span>
+            <span id="{{ form.has_trade_in.auto_id }}_helptext" class="block text-xs text-muted">{{ form.has_trade_in.help_text }}</span>
+          </span>
+        </label>
+      </div>
+      <div x-show="reprise" x-cloak class="flex flex-col gap-4 rounded-control border border-border p-3">
+        {% include "components/champ_formulaire.html" with field=form.trade_in_value hide_optional=True %}
+        <div class="grid gap-4 sm:grid-cols-2">
+          {% include "components/champ_formulaire.html" with field=trade_in_form.vehicle_type %}
+          {% include "components/champ_formulaire.html" with field=trade_in_form.brand %}
+          {% include "components/champ_formulaire.html" with field=trade_in_form.model %}
+          {% include "components/champ_formulaire.html" with field=trade_in_form.year %}
+        </div>
+      </div>
+      {% endif %}
+      <div id="apercu" aria-live="polite" class="rounded-control bg-page p-3 text-sm empty:hidden"
+           hx-post="{% url 'sales:sale_preview' vehicle.number %}"
+           hx-trigger="load, change from:#formulaire-vente, input changed delay:600ms from:#formulaire-vente"
+           hx-swap="innerHTML" hx-sync="this:replace"></div>
+    </section>
+
+    <section aria-labelledby="rubrique-payeur" class="flex flex-col gap-4 rounded-card border border-border bg-surface p-4">
+      {% include "components/choix_payeurs.html" %}
+    </section>
+
+    <section aria-labelledby="rubrique-acheteur" class="flex flex-col gap-4 rounded-card border border-border bg-surface p-4">
+      <h2 id="rubrique-acheteur" class="text-base font-semibold">L'acheteur</h2>
+      {% include "components/champ_contact.html" with field=form.buyer %}
+      {% include "components/champ_formulaire.html" with field=form.sold_where %}
+      {% include "components/champ_formulaire.html" with field=form.notes %}
+    </section>
+
+    <div class="flex flex-wrap gap-2">
+      <button type="submit" class="btn-primary" :disabled="envoi" :aria-disabled="envoi.toString()">{% if sale %}Enregistrer{% else %}Enregistrer la vente{% endif %}</button>
+      <a href="{{ vehicle.get_absolute_url }}" class="btn-secondary">Retour</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

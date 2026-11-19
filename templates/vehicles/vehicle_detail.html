@@ -1,0 +1,393 @@
+{% extends "base.html" %}
+{% load partials ui_tags %}
+
+{% block title %}{{ vehicle.display_name }} · {{ garage_name }}{% endblock %}
+
+{% block content %}
+<div class="flex max-w-5xl flex-col gap-3">
+  <header class="flex flex-wrap items-start justify-between gap-3">
+    <div class="min-w-0">
+      <h1 class="text-xl font-semibold break-words">{{ vehicle.display_name }}</h1>
+      <div class="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted">
+        {% include "components/badge_statut.html" with status=vehicle.status %}
+        <span>{{ vehicle.vehicle_type }}</span>
+      </div>
+    </div>
+
+    {% if not read_only %}
+    <div class="flex flex-wrap items-center gap-2">
+      {# Un seul bouton bleu : l'action attendue à ce stade, en premier. #}
+      {% if vehicle.status == "WAITING_PURCHASE" %}
+      <a href="{% url 'vehicles:purchase' vehicle.number %}" class="btn-primary">Enregistrer l'achat</a>
+      <a href="{% url 'expenses:create' %}?vehicule={{ vehicle.number }}" class="btn-secondary">
+        {% include "components/icone.html" with name="plus" class="size-4" %}Ajouter une dépense
+      </a>
+      {% elif sale_is_next %}
+      <a href="{% url 'sales:sale_create' vehicle.number %}" class="btn-primary">
+        {% include "components/icone.html" with name="cash" class="size-4" %}Enregistrer la vente
+      </a>
+      <a href="{% url 'expenses:create' %}?vehicule={{ vehicle.number }}" class="btn-secondary">
+        {% include "components/icone.html" with name="plus" class="size-4" %}Ajouter une dépense
+      </a>
+      {% elif vehicle.status != "SOLD" %}
+      <a href="{% url 'expenses:create' %}?vehicule={{ vehicle.number }}" class="btn-primary">
+        {% include "components/icone.html" with name="plus" class="size-4" %}Ajouter une dépense
+      </a>
+      {% if can_sell %}
+      <a href="{% url 'sales:sale_create' vehicle.number %}" class="btn-secondary">
+        {% include "components/icone.html" with name="cash" class="size-4" %}Enregistrer la vente
+      </a>
+      {% endif %}
+      {% elif not vehicle.expenses_locked %}
+      {# Vendu, fiche rouverte : le bouton bleu est « Verrouiller la fiche », dans le bandeau. #}
+      <a href="{% url 'expenses:create' %}?vehicule={{ vehicle.number }}" class="btn-secondary">
+        {% include "components/icone.html" with name="plus" class="size-4" %}Ajouter une dépense
+      </a>
+      {% endif %}
+
+      {% if can_take_deposit %}
+      <a href="{% url 'sales:deposit_create' vehicle.number %}" class="btn-secondary">
+        {% include "components/icone.html" with name="cash" class="size-4" %}Enregistrer un acompte
+      </a>
+      {% endif %}
+
+      <a href="{% url 'vehicles:edit' vehicle.number %}" class="btn-secondary">
+        {% include "components/icone.html" with name="pencil" class="size-4" %}Modifier la fiche
+      </a>
+
+      {% if allowed_statuses %}
+      <div x-data="{ ouvert: false }" class="relative" @keydown.escape="ouvert = false" @click.outside="ouvert = false">
+        <button type="button" class="btn-secondary" @click="ouvert = !ouvert" :aria-expanded="ouvert" aria-haspopup="true" aria-controls="menu-statut">
+          Changer le statut
+          {% include "components/icone.html" with name="chevron-down" class="size-4" %}
+        </button>
+        <form id="menu-statut" method="post" action="{% url 'vehicles:status' vehicle.number %}" x-show="ouvert" x-cloak x-transition
+              class="absolute right-0 z-20 mt-1 flex w-60 flex-col rounded-card border border-border bg-surface p-1">
+          {% csrf_token %}
+          <p class="px-2 py-1 text-xs text-muted">Passer en :</p>
+          {% for status in allowed_statuses %}
+          <button type="submit" name="status" value="{{ status }}" class="flex min-h-10 items-center rounded-control px-2 text-left hover:bg-page">
+            {% include "components/badge_statut.html" with status=status %}
+          </button>
+          {% endfor %}
+        </form>
+      </div>
+      {% endif %}
+
+    </div>
+    {% endif %}
+  </header>
+
+  {% include "components/bandeau_verrou.html" %}
+
+  <section aria-label="Argent investi" class="grid gap-3 sm:grid-cols-3">
+    {% for partner, amount in investments %}
+    {% include "components/tuile_indicateur.html" with label="Investi par "|add:partner.name value=amount|euros partner=partner %}
+    {% endfor %}
+    {% include "components/tuile_indicateur.html" with label="Total investi" value=invested_total|euros %}
+  </section>
+
+  {% include "components/bloc_vente.html" %}
+  {% include "components/bloc_acompte.html" %}
+
+  <div class="grid gap-3 lg:grid-cols-2">
+    <section aria-labelledby="titre-vehicule" class="rounded-card border border-border bg-surface p-4">
+      <h2 id="titre-vehicule" class="text-base font-semibold">Le véhicule</h2>
+      <dl class="mt-3 grid grid-cols-[max-content_1fr] gap-x-6 gap-y-2">
+        {% include "components/info.html" with label="Type" value=vehicle.vehicle_type %}
+        {% include "components/info.html" with label="Marque" value=vehicle.brand %}
+        {% include "components/info.html" with label="Modèle" value=vehicle.model %}
+        {% include "components/info.html" with label="Année" value=vehicle.year %}
+        {% include "components/info.html" with label="Cylindrée" value=vehicle.displacement_cc|nombre suffix="cm³" %}
+        {% include "components/info.html" with label="Couleur" value=vehicle.color %}
+        {% include "components/info.html" with label="Kilométrage" value=vehicle.mileage_km|nombre suffix="km" %}
+        {% include "components/info.html" with label="N° de série (VIN)" value=vehicle.vin %}
+        {% include "components/info.html" with label="Immatriculation" value=vehicle.registration %}
+      </dl>
+    </section>
+
+    <section aria-labelledby="titre-achat" class="rounded-card border border-border bg-surface p-4">
+      <h2 id="titre-achat" class="text-base font-semibold">Achat</h2>
+      <dl class="mt-3 grid grid-cols-[max-content_1fr] gap-x-6 gap-y-2">
+        {% if purchase %}
+        {% include "components/info.html" with label="Prix payé" value=purchase.price|euros %}
+        {% include "components/info.html" with label="Acheté le" value=vehicle.purchased_on|date:"d/m/Y" %}
+        <div class="contents">
+          <dt class="text-muted">Payé par</dt>
+          <dd class="flex flex-wrap gap-2">
+            {% for partner, amount in purchase.payers %}
+            <span class="inline-flex min-h-6 items-center gap-1 rounded-control px-2 text-xs font-semibold {{ partner.color|partner_badge }}">{{ partner.name }} · {{ amount|euros }}</span>
+            {% empty %}<span class="text-muted">—</span>
+            {% endfor %}
+          </dd>
+        </div>
+        {% endif %}
+        {% include "components/info_contact.html" with label="Vendeur" contact=vehicle.seller %}
+        {% include "components/info.html" with label="Origine" value=vehicle.origin %}
+        <div class="contents">
+          <dt class="text-muted">Annonce</dt>
+          <dd class="min-w-0">
+            {% if vehicle.listing_url %}
+            <a href="{{ vehicle.listing_url }}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-accent-ink hover:underline">
+              Ouvrir l'annonce{% include "components/icone.html" with name="external-link" class="size-4" %}
+            </a>
+            {% else %}<span class="text-muted">—</span>{% endif %}
+          </dd>
+        </div>
+        {% include "components/info.html" with label="Prix demandé" value=vehicle.asking_price|euros %}
+        {% include "components/info.html" with label="Lieu" value=vehicle.location %}
+        {% if vehicle.sale_price_target or vehicle.listed_on %}
+        {% include "components/info.html" with label="Prix de vente affiché" value=vehicle.sale_price_target|euros %}
+        {% include "components/info.html" with label="Mis en vente le" value=vehicle.listed_on|date:"d/m/Y" %}
+        {% endif %}
+      </dl>
+    </section>
+  </div>
+
+  {% if takes_parts_to_order %}
+  <section aria-labelledby="titre-a-commander" class="rounded-card border border-border bg-surface p-4">
+    <div class="flex flex-wrap items-center justify-between gap-2">
+      <h2 id="titre-a-commander" class="flex items-center gap-2 text-base font-semibold">
+        {% include "components/icone.html" with name="shopping-cart" class="size-4" %}À commander
+      </h2>
+      {% if not read_only %}
+      <div class="flex flex-wrap gap-2">
+        {% if vehicle_parts_to_order %}
+        <a href="{% url 'expenses:create' %}?vehicule={{ vehicle.number }}{% for part in vehicle_parts_to_order %}&amp;pieces={{ part.pk }}{% endfor %}" class="btn-secondary">
+          Enregistrer la commande
+        </a>
+        {% endif %}
+        <a href="{% url 'expenses:part_create' %}?vehicule={{ vehicle.number }}&amp;depuis=fiche" class="btn-secondary">
+          {% include "components/icone.html" with name="plus" class="size-4" %}Ajouter une pièce à commander
+        </a>
+      </div>
+      {% endif %}
+    </div>
+    <ul class="mt-2">
+      {% for part in vehicle_parts_to_order %}
+      <li class="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border py-2 first:border-t-0">
+        <span class="min-w-0 flex-1">
+          <span class="block break-words font-semibold">{{ part.label }}{% if part.reference %} <span class="font-normal text-muted">· {{ part.reference }}</span>{% endif %}</span>
+          <span class="block text-xs text-muted">Quantité {{ part.quantity|floatformat:"-2" }}{% if part.unit_price %} · environ {{ part.unit_price|euros }} l'unité{% endif %}</span>
+        </span>
+        <span class="inline-flex min-h-6 items-center rounded-control px-2 text-xs font-semibold {{ part.status|part_status_badge }}">{{ part.status|part_status_label }}</span>
+        {% if not read_only %}
+        <a href="{% url 'expenses:part_edit' part.pk %}?depuis=fiche" aria-label="Modifier {{ part.label }}" title="Modifier"
+           class="grid size-10 place-items-center rounded-control text-accent-ink hover:bg-page">
+          {% include "components/icone.html" with name="pencil" class="size-4" %}
+        </a>
+        <form method="post" action="{% url 'expenses:part_delete' part.pk %}?depuis=fiche" x-data
+              @submit="if (!confirm('Mettre cette pièce à la corbeille ? Tu pourras la restaurer.')) $event.preventDefault()">
+          {% csrf_token %}
+          <button type="submit" aria-label="Mettre {{ part.label }} à la corbeille" title="Mettre à la corbeille"
+                  class="grid size-10 place-items-center rounded-control text-danger hover:bg-page">
+            {% include "components/icone.html" with name="trash" class="size-4" %}
+          </button>
+        </form>
+        {% endif %}
+      </li>
+      {% empty %}
+      <li class="py-2 text-muted">Rien à commander. Note ici les pièces à acheter, pour ne pas les oublier.</li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% endif %}
+
+  <section aria-labelledby="titre-depenses" class="rounded-card border border-border bg-surface p-4">
+    <h2 id="titre-depenses" class="flex items-center gap-2 text-base font-semibold">
+      {% include "components/icone.html" with name="receipt" class="size-4" %}Dépenses
+    </h2>
+    <ul class="mt-2">
+      {% for row in expense_rows %}
+      {% include "components/ligne_depense.html" with row=row %}
+      {% empty %}
+      <li class="py-2 text-muted">{% if vehicle.expenses_locked %}Aucune dépense.{% else %}Aucune dépense pour l'instant. Ajoute la première avec « Ajouter une dépense ».{% endif %}</li>
+      {% endfor %}
+    </ul>
+    {% if transfers %}
+    {# Trace des transferts (D90) : une pièce donnée n'est plus dans la liste ci-dessus. #}
+    <h3 class="mt-3 text-sm font-semibold">Pièces transférées</h3>
+    <ul class="mt-1">
+      {% for transfer in transfers %}
+      <li class="flex flex-wrap items-center gap-x-1 border-t border-border py-2 text-sm first:border-t-0">
+        {% include "components/icone.html" with name="switch-horizontal" class="size-4 text-muted" %}
+        <span class="font-semibold">« {{ transfer.line.label }} »</span>
+        {% if transfer.to_vehicle_id == vehicle.pk %}
+        {% with autre=transfer.from_vehicle %}reçue du {% if autre.deleted_at %}{{ autre.display_name }}{% else %}<a href="{{ autre.get_absolute_url }}" class="text-accent-ink hover:underline">{{ autre.display_name }}</a>{% endif %}{% endwith %}
+        {% else %}
+        {% with autre=transfer.to_vehicle %}donnée au {% if autre.deleted_at %}{{ autre.display_name }}{% else %}<a href="{{ autre.get_absolute_url }}" class="text-accent-ink hover:underline">{{ autre.display_name }}</a>{% endif %}{% endwith %}
+        {% endif %}
+        <span class="text-muted">le {{ transfer.date|date:"d/m/Y" }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+  </section>
+
+  {% partialdef photos inline %}
+  {# Galerie par étape, renvoyée seule après un envoi ou une mise à la corbeille (HTMX). #}
+  <section id="photos" aria-labelledby="titre-photos" class="rounded-card border border-border bg-surface p-4"
+           x-data="{
+             grande: null,
+             origine: null,
+             ouvrir(adresse, bouton) { this.grande = adresse; this.origine = bouton; this.$nextTick(() => this.$refs.fermer.focus()); },
+             fermer() { if (!this.grande) return; this.grande = null; this.origine && this.origine.focus(); }
+           }"
+           @keydown.escape.window="fermer()">
+    <h2 id="titre-photos" class="flex items-center gap-2 text-base font-semibold">
+      {% include "components/icone.html" with name="photo" class="size-4" %}Photos
+    </h2>
+
+    {% if photo_notes %}
+    <div role="status" class="mt-2 flex flex-col gap-1">
+      {% for level, text in photo_notes %}
+      <p class="text-sm {% if level == 'error' %}text-danger{% else %}text-muted{% endif %}">{{ text }}</p>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="mt-3 grid gap-4 md:grid-cols-2">
+      {% for stage, label, photos in photo_stages %}
+      <div class="flex flex-col gap-2">
+        <h3 class="text-sm font-semibold">{{ label }} <span class="font-normal text-muted">· {{ photos|length }}</span></h3>
+
+        {% if photos %}
+        <ul class="grid grid-cols-3 gap-2">
+          {% for photo in photos %}
+          <li class="relative">
+            <button type="button" @click="ouvrir('{{ photo.file.url|escapejs }}', $el)" aria-label="Voir la photo {{ forloop.counter }} ({{ label|lower }}) en grand"
+                    class="block w-full overflow-hidden rounded-control border border-border">
+              {# La miniature dans la galerie ; la photo d'origine en grand (D92). #}
+              <img src="{{ photo|thumbnail_url }}" alt="" loading="lazy" class="aspect-square w-full object-cover">
+            </button>
+            {% if not read_only %}
+            <button type="button" title="Mettre à la corbeille" aria-label="Mettre la photo {{ forloop.counter }} ({{ label|lower }}) à la corbeille"
+                    hx-post="{% url 'vehicles:photo_delete' vehicle.number photo.pk %}" hx-target="#photos" hx-swap="outerHTML"
+                    hx-confirm="Mettre cette photo à la corbeille ? Tu pourras la restaurer."
+                    class="absolute right-1 top-1 grid size-8 place-items-center rounded-control border border-border bg-surface text-danger hover:bg-page">
+              {% include "components/icone.html" with name="trash" class="size-4" %}
+            </button>
+            {% endif %}
+          </li>
+          {% endfor %}
+        </ul>
+        {% endif %}
+
+        {% if not read_only %}
+        {% max_files_per_send as maximum %}
+        <form method="post" action="{% url 'vehicles:photos_add' vehicle.number %}" enctype="multipart/form-data"
+              hx-post="{% url 'vehicles:photos_add' vehicle.number %}" hx-encoding="multipart/form-data"
+              hx-target="#photos" hx-swap="outerHTML"
+              x-data="{
+                survol: false,
+                trop: false,
+                {# Même limite que le serveur (DATA_UPLOAD_MAX_NUMBER_FILES, D92) : rien ne part. #}
+                envoyer(formulaire, fichiers) {
+                  this.trop = fichiers.length > {{ maximum }};
+                  if (this.trop) { this.$refs.fichiers.value = ''; return; }
+                  htmx.trigger(formulaire, 'submit');
+                }
+              }"
+              @dragover.prevent="survol = true" @dragleave.prevent="survol = false"
+              @drop.prevent="survol = false; $refs.fichiers.files = $event.dataTransfer.files; envoyer($el, $event.dataTransfer.files)"
+              :class="survol ? 'border-accent bg-accent-bg' : 'border-border'"
+              class="flex flex-col items-center gap-2 rounded-card border-2 border-dashed border-border p-4 text-center text-sm text-muted">
+          {% csrf_token %}
+          <input type="hidden" name="stage" value="{{ stage }}">
+          {% include "components/icone.html" with name="upload" class="size-5" %}
+          <span>Glisse tes photos ici</span>
+          <label class="btn-secondary cursor-pointer has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-accent">
+            Choisir des photos
+            <input type="file" name="photos" multiple accept="image/*" x-ref="fichiers" class="sr-only"
+                   @change="envoyer($el.form, $el.files)">
+          </label>
+          <p x-show="trop" x-cloak role="alert" class="text-sm text-danger">Tu as choisi plus de {{ maximum }} photos : rien n'est envoyé. Envoie-les en plusieurs fois, {{ maximum }} au plus à chaque envoi.</p>
+          <span class="htmx-indicator text-xs">Envoi en cours…</span>
+        </form>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+
+    {# Photo en grand : un clic ou Échap la ferme ; le focus va sur « Fermer » puis revient à la vignette. #}
+    <div x-show="grande" x-cloak x-transition.opacity role="dialog" aria-modal="true" aria-label="Photo en grand"
+         class="fixed inset-0 z-50 grid place-items-center bg-page/95 p-6" @click="fermer()">
+      <img :src="grande" alt="" class="max-h-full max-w-full rounded-card">
+      <button type="button" x-ref="fermer" class="btn-secondary absolute right-4 top-4" @click.stop="fermer()">
+        {% include "components/icone.html" with name="x" class="size-4" %}Fermer
+      </button>
+    </div>
+  </section>
+  {% endpartialdef %}
+
+  {% if vehicle.notes %}
+  <section aria-labelledby="titre-notes" class="rounded-card border border-border bg-surface p-4">
+    <h2 id="titre-notes" class="text-base font-semibold">Notes</h2>
+    <p class="mt-2 break-words">{{ vehicle.notes|linebreaksbr }}</p>
+  </section>
+  {% endif %}
+
+  <section aria-labelledby="titre-historique" class="rounded-card border border-border bg-surface p-4">
+    <div class="flex flex-wrap items-center justify-between gap-x-3">
+      <h2 id="titre-historique" class="flex items-center gap-2 text-base font-semibold">
+        {% include "components/icone.html" with name="history" class="size-4" %}Historique des statuts
+      </h2>
+      {# D78 : tout ce qui a changé sur la fiche, ses dépenses et sa vente. #}
+      <a href="{% url 'core:journal' %}?vehicule={{ vehicle.number }}" class="inline-flex min-h-10 items-center text-sm text-accent-ink hover:underline">Voir tout son historique</a>
+    </div>
+    <ol class="mt-2">
+      {% for change in status_changes %}
+      <li class="flex flex-wrap items-center gap-2 border-t border-border py-2 first:border-t-0">
+        <span class="w-36 shrink-0 text-xs text-muted">{{ change.changed_at|date:"d/m/Y à H:i" }}</span>
+        {% if change.from_status %}
+        {% include "components/badge_statut.html" with status=change.from_status %}
+        <span aria-hidden="true" class="text-muted">→</span><span class="sr-only">puis</span>
+        {% else %}
+        <span>Ajouté au garage :</span>
+        {% endif %}
+        {% include "components/badge_statut.html" with status=change.to_status %}
+        {% if change.changed_by %}<span class="text-xs text-muted">par {{ change.changed_by.name }}</span>{% endif %}
+      </li>
+      {% empty %}
+      <li class="py-2 text-muted">Aucun changement de statut enregistré.</li>
+      {% endfor %}
+    </ol>
+  </section>
+
+  {% if reopenings %}
+  {# D50 : chaque réouverture de la fiche, avec son motif, lue dans l'historique du véhicule. #}
+  <section aria-labelledby="titre-reouvertures" class="rounded-card border border-border bg-surface p-4">
+    <h2 id="titre-reouvertures" class="flex items-center gap-2 text-base font-semibold">
+      {% include "components/icone.html" with name="lock-open" class="size-4" %}Réouvertures
+    </h2>
+    <ol class="mt-2">
+      {% for reopening in reopenings %}
+      <li class="border-t border-border py-2 first:border-t-0">
+        <p class="text-sm"><span class="font-semibold">Rouverte le {{ reopening.reopened_at|date:"d/m/Y à H:i" }}</span> <span class="text-muted">par {{ reopening.by }}</span></p>
+        <p class="break-words text-sm"><span class="text-muted">Motif :</span> {{ reopening.reason }}</p>
+        <p class="text-xs text-muted">{% if reopening.ended_by_cancelled_sale %}Fin de la réouverture le {{ reopening.locked_at|date:"d/m/Y à H:i" }} : la vente a été annulée{% elif reopening.locked_at %}Verrouillée de nouveau le {{ reopening.locked_at|date:"d/m/Y à H:i" }}{% else %}Encore rouverte{% endif %}</p>
+      </li>
+      {% endfor %}
+    </ol>
+  </section>
+  {% endif %}
+
+  {% if trash_offer and not read_only %}
+  {# D74 : seule une fiche sans argent part à la corbeille (créée par erreur, par exemple). #}
+  <section aria-label="Corbeille" class="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-3">
+    {% if trash_offer.refusal %}
+    <p class="text-sm text-muted">Pour mettre cette fiche à la corbeille : {{ trash_offer.refusal }}</p>
+    {% else %}
+    <p class="text-sm text-muted">Fiche créée par erreur ? Tu peux la mettre à la corbeille, et la restaurer ensuite.</p>
+    <form method="post" action="{% url 'vehicles:trash' vehicle.number %}" x-data
+          @submit="if (!confirm('Mettre cette fiche à la corbeille ? Ses photos et ses notes partent avec elle. Tu pourras la restaurer.')) $event.preventDefault()">
+      {% csrf_token %}
+      <button type="submit" class="btn-danger">
+        {% include "components/icone.html" with name="trash" class="size-4" %}Mettre la fiche à la corbeille
+      </button>
+    </form>
+    {% endif %}
+  </section>
+  {% endif %}
+</div>
+{% endblock %}

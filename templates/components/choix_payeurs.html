@@ -1,0 +1,28 @@
+{% comment %}
+« Qui a payé ? » (ou « Qui a encaissé ? » pour une vente) : un gros bouton par associé,
+« Moitié-moitié » et « Montants différents ».
+`form` utilise `PayersFormMixin` ; la variable Alpine `payeur` (x-data du parent) suit le choix.
+{% endcomment %}
+{# Payeurs grisés (achat d'une reprise, D51) : le fieldset désactivé désactive chaque bouton. #}
+<fieldset class="flex flex-col gap-2 disabled:opacity-60" {% if form.payer.errors %}aria-invalid="true"{% endif %} {% if form.payer.field.disabled %}disabled{% endif %}>
+  <legend id="rubrique-payeur" class="mb-2 text-base font-semibold">{{ form.payer.label }}</legend>
+  <div class="grid gap-2 sm:grid-cols-2">
+    {% for value, label, partner in form.payer_options %}
+    <label class="flex min-h-12 cursor-pointer items-center has-[:disabled]:cursor-not-allowed gap-3 rounded-card border border-border px-3 hover:bg-page has-[:checked]:border-accent has-[:checked]:bg-accent-bg has-[:checked]:text-accent-ink">
+      <input type="radio" name="{{ form.payer.html_name }}" value="{{ value }}" x-model="payeur"
+             class="size-4 accent-accent" {% if form.payer.value|stringformat:"s" == value %}checked{% endif %}>
+      {% if partner %}
+      {% include "components/avatar_associe.html" with partner=partner class="size-7" %}
+      {% endif %}
+      <span class="font-semibold">{{ label }}</span>
+    </label>
+    {% endfor %}
+  </div>
+  {% for error in form.payer.errors %}<p class="text-xs text-danger">{{ error }}</p>{% endfor %}
+</fieldset>
+
+<div x-show="payeur === 'montants'" x-cloak class="flex flex-col gap-4">
+  {% for field in form.amount_fields %}
+  {% include "components/champ_formulaire.html" with field=field hide_optional=True %}
+  {% endfor %}
+</div>

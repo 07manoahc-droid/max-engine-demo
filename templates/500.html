@@ -1,0 +1,26 @@
+{% load static %}<!doctype html>
+{# Erreur du logiciel (D69). Django l'affiche sans contexte : rien ici ne lit la base ni la session, pour qu'elle s'affiche même quand la base pose problème. #}
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Quelque chose s'est mal passé · MAx Engine</title>
+  <link rel="stylesheet" href="{% static 'css/tailwind.css' %}">
+  <link rel="icon" href="{% static 'max-engine.ico' %}">
+  {# Le mode clair ou sombre choisi, comme dans base.html (lu dans le navigateur, pas en base). #}
+  <script>
+    try {
+      var choix = localStorage.getItem("theme");
+      var sombre = choix ? choix === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches;
+      document.documentElement.classList.toggle("dark", sombre);
+    } catch (e) {}
+  </script>
+</head>
+<body class="bg-page text-ink">
+  <main class="mx-auto flex max-w-xl flex-col gap-3 p-6">
+    <h1 class="text-xl font-semibold">Quelque chose s'est mal passé.</h1>
+    <p class="text-muted">Ce que tu venais de faire n'a peut-être pas été enregistré. Ferme MAx Engine et rouvre-le ; si ça recommence, préviens Mathis en lui disant ce que tu faisais.</p>
+    <a href="/" class="btn-primary self-start">Revenir à l'accueil</a>
+  </main>
+</body>
+</html>

@@ -1,0 +1,18 @@
+{% comment %}
+Onglets des comptes (D52) : « Solde et règlements » et « Dépenses du garage ». L'onglet de la page
+affichée est en bleu (élément sélectionné, charte) et porte `aria-current`.
+{% endcomment %}
+{% with vue=request.resolver_match.view_name %}
+<nav aria-label="Pages des comptes" class="flex flex-wrap gap-1 border-b border-border">
+  <a href="{% url 'accounting:accounts' %}"
+     {% if vue == 'accounting:accounts' %}aria-current="page"{% endif %}
+     class="-mb-px inline-flex min-h-10 items-center gap-2 border-b-2 px-3 text-sm {% if vue == 'accounting:accounts' %}border-accent font-semibold text-accent-ink{% else %}border-transparent text-muted hover:text-ink{% endif %}">
+    {% include "components/icone.html" with name="scale" class="size-4" %}Solde et règlements
+  </a>
+  <a href="{% url 'accounting:garage_expenses' %}"
+     {% if vue == 'accounting:garage_expenses' %}aria-current="page"{% endif %}
+     class="-mb-px inline-flex min-h-10 items-center gap-2 border-b-2 px-3 text-sm {% if vue == 'accounting:garage_expenses' %}border-accent font-semibold text-accent-ink{% else %}border-transparent text-muted hover:text-ink{% endif %}">
+    {% include "components/icone.html" with name="receipt" class="size-4" %}Dépenses du garage
+  </a>
+</nav>
+{% endwith %}

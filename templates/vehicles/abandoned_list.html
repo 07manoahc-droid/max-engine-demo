@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% load ui_tags %}
+
+{% block title %}Véhicules abandonnés · {{ garage_name }}{% endblock %}
+
+{% block content %}
+<div class="flex max-w-6xl flex-col gap-3">
+  <header class="flex flex-col gap-1">
+    <h1 class="text-xl font-semibold">Véhicules abandonnés</h1>
+    {% if cards %}
+    <p class="text-sm text-muted">
+      {{ cards|length }} véhicule{{ cards|length|pluralize }} ·
+      {% if total.is_loss %}perte de tous les abandons : <span class="font-semibold text-ink tabular-nums">{{ total.shown_margin|euros }}</span>{% elif total.shown_margin %}gain de tous les abandons : <span class="font-semibold text-ink tabular-nums">{{ total.shown_margin|euros }}</span>{% else %}aucune perte{% endif %}
+    </p>
+    <p class="text-xs text-muted">Perte = coût de revient − acompte conservé. Elle compte au bilan de l'année de l'abandon.</p>
+    {% endif %}
+  </header>
+
+  {% if cards %}
+  <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+    {% for item in cards %}
+    {% include "components/carte_vehicule_abandonne.html" with item=item %}
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="flex flex-col items-start gap-3 rounded-card border border-border bg-surface p-4">
+    <p>Aucun véhicule abandonné. Un véhicule passé en « Abandonné » apparaîtra ici, avec sa perte.</p>
+    <a href="{% url 'vehicles:list' %}" class="btn-secondary">Voir les véhicules au garage</a>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

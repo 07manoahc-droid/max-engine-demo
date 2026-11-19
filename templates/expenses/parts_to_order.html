@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% load ui_tags %}
+
+{% block title %}Pièces à commander · {{ garage_name }}{% endblock %}
+
+{% block content %}
+<div class="flex max-w-4xl flex-col gap-3">
+  <header class="flex flex-wrap items-start justify-between gap-3">
+    <div>
+      <h1 class="text-xl font-semibold">Pièces à commander</h1>
+      <p class="mt-1 text-muted">Coche les pièces d'une même commande, puis enregistre la commande et son paiement.</p>
+    </div>
+    {% if not read_only %}
+    <div class="flex flex-wrap gap-2">
+      <a href="{% url 'expenses:part_create' %}" class="btn-secondary">
+        {% include "components/icone.html" with name="plus" class="size-4" %}Ajouter une pièce à commander
+      </a>
+      <a href="{% url 'expenses:create' %}" class="btn-secondary">
+        {% include "components/icone.html" with name="receipt" class="size-4" %}Ajouter une dépense
+      </a>
+    </div>
+    {% endif %}
+  </header>
+
+  {% if groups %}
+  {# La commande s'ouvre dans le formulaire de dépense, avec les pièces cochées comme lignes. #}
+  {# En consultation (D79), la liste seule, sans formulaire de commande. #}
+  {% if read_only %}<div class="flex flex-col gap-3">{% else %}
+  <form method="get" action="{% url 'expenses:create' %}" class="flex flex-col gap-3"
+        x-data="{ cochees: 0 }" x-init="cochees = $el.querySelectorAll('input[name=pieces]:checked').length" @change="cochees = $el.querySelectorAll('input[name=pieces]:checked').length">
+  {% endif %}
+    {% for vehicle, parts in groups %}
+    <section aria-labelledby="groupe-{{ forloop.counter }}" class="rounded-card border border-border bg-surface p-4">
+      <h2 id="groupe-{{ forloop.counter }}" class="flex flex-wrap items-center gap-2 text-base font-semibold">
+        {% if vehicle %}
+        {% include "components/icone.html" with name="motorbike" class="size-4" %}
+        <a href="{{ vehicle.get_absolute_url }}" class="min-w-0 break-words hover:underline">{{ vehicle.display_name }}</a>
+        {% include "components/badge_statut.html" with status=vehicle.status %}
+        {% else %}
+        {% include "components/icone.html" with name="engine" class="size-4" %}Garage
+        {% endif %}
+      </h2>
+      <ul class="mt-2">
+        {% for part in parts %}
+        <li class="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border py-2 first:border-t-0">
+          <label class="flex min-h-10 min-w-0 flex-1 cursor-pointer items-center gap-3">
+            {% if not read_only %}
+            <input type="checkbox" name="pieces" value="{{ part.pk }}" class="size-4 shrink-0 accent-accent">
+            {% endif %}
+            <span class="min-w-0">
+              <span class="block break-words font-semibold">{{ part.label }}{% if part.reference %} <span class="font-normal text-muted">· {{ part.reference }}</span>{% endif %}</span>
+              <span class="block text-xs text-muted">
+                Quantité {{ part.quantity|floatformat:"-2" }}{% if part.unit_price %} · environ {{ part.unit_price|euros }} l'unité{% endif %}
+              </span>
+            </span>
+          </label>
+          {% if not read_only %}
+          <a href="{% url 'expenses:part_edit' part.pk %}" class="inline-flex min-h-10 items-center gap-1 rounded-control px-2 text-sm text-accent-ink hover:bg-page"
+             aria-label="Modifier {{ part.label }}">
+            {% include "components/icone.html" with name="pencil" class="size-4" %}Modifier
+          </a>
+          <button type="submit" form="corbeille-{{ part.pk }}" title="Mettre à la corbeille" aria-label="Mettre {{ part.label }} à la corbeille"
+                  class="grid size-10 place-items-center rounded-control text-danger hover:bg-page">
+            {% include "components/icone.html" with name="trash" class="size-4" %}
+          </button>
+          {% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+    </section>
+    {% endfor %}
+
+    {% if not read_only %}
+    <div class="flex flex-wrap items-center gap-3">
+      <button type="submit" class="btn-primary" :disabled="!cochees" :aria-disabled="(!cochees).toString()">
+        {% include "components/icone.html" with name="shopping-cart" class="size-4" %}Enregistrer la commande
+      </button>
+      <span class="text-sm text-muted" x-text="cochees ? cochees + (cochees > 1 ? ' pièces cochées' : ' pièce cochée') : 'Coche au moins une pièce.'">Coche au moins une pièce.</span>
+    </div>
+    {% endif %}
+  {% if read_only %}</div>{% else %}</form>{% endif %}
+
+  {# Formulaires de mise à la corbeille, hors du formulaire de commande (pas de formulaire imbriqué). #}
+  {% if not read_only %}
+  {% for vehicle, parts in groups %}{% for part in parts %}
+  <form id="corbeille-{{ part.pk }}" method="post" action="{% url 'expenses:part_delete' part.pk %}" class="hidden" x-data
+        @submit="if (!confirm('Mettre cette pièce à la corbeille ? Tu pourras la restaurer.')) $event.preventDefault()">
+    {% csrf_token %}
+  </form>
+  {% endfor %}{% endfor %}
+  {% endif %}
+
+  {% else %}
+  <p class="rounded-card border border-border bg-surface p-4 text-muted">Aucune pièce à commander. Ajoute la première avec « Ajouter une pièce à commander ».</p>
+  {% endif %}
+</div>
+{% endblock %}

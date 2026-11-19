@@ -1,0 +1,209 @@
+{% extends "base.html" %}
+{% load partials ui_tags %}
+
+{% block title %}{% if expense %}Modifier la dépense{% else %}Ajouter une dépense{% endif %} · {{ garage_name }}{% endblock %}
+
+{% partialdef ligne %}
+{# Une ligne de la dépense. « Retirer » la masque et coche sa case DELETE : elle n'est pas enregistrée. #}
+<div data-ligne x-data="{ retiree: {% if line.DELETE.value %}true{% else %}false{% endif %}, categorie: '{{ line.category.value|default:''|stringformat:'s'|escapejs }}' }">
+<p x-show="retiree" x-cloak class="flex min-h-10 flex-wrap items-center gap-2 rounded-card border border-dashed border-border px-3 text-sm text-muted">
+  Ligne retirée{% if line.label.value %} : {{ line.label.value }}{% endif %}.
+  <button type="button" x-ref="remettre" class="inline-flex min-h-10 items-center text-accent-ink hover:underline" @click="retiree = false; $nextTick(() => { $el.closest('[data-ligne]').querySelector('input[name$=label]').focus(); $dispatch('change'); })">Remettre la ligne</button>
+</p>
+<fieldset class="flex flex-col gap-3 rounded-card border border-border p-3" x-show="!retiree" x-cloak>
+  <legend class="sr-only">Ligne de la dépense</legend>
+  {{ line.line_id }}
+  <input type="hidden" name="{{ line.DELETE.html_name }}" :value="retiree ? 'on' : ''" value="{% if line.DELETE.value %}on{% endif %}">
+  {% for error in line.non_field_errors %}<p class="text-sm text-danger" role="alert">{{ error }}</p>{% endfor %}
+
+  {# Grand écran : désignation, quantité, prix sur une rangée ; le reste sur la suivante. #}
+  <div class="grid grid-cols-2 gap-3 lg:grid-cols-[minmax(0,1fr)_6rem_8rem]">
+    <div class="col-span-2 lg:col-span-1">
+      {% include "components/champ_formulaire.html" with field=line.label %}
+    </div>
+    {% include "components/champ_formulaire.html" with field=line.quantity %}
+    {% include "components/champ_formulaire.html" with field=line.unit_price %}
+  </div>
+  <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+    {% include "components/champ_formulaire.html" with field=line.reference %}
+    {% include "components/champ_formulaire.html" with field=line.category %}
+    {% include "components/champ_formulaire.html" with field=line.vehicle hide_optional=True %}
+    <div x-show="categorie === '{{ line.parts_category_id }}'">
+      {% if line.status_read_only %}
+      {# « Retourné » suit le remboursement : affiché seulement, rien n'est envoyé. #}
+      <div class="flex flex-col gap-1">
+        <span class="text-sm font-semibold">{{ line.status.label }}</span>
+        <span class="flex min-h-10 items-center">
+          <span class="inline-flex min-h-6 items-center rounded-control px-2 text-xs font-semibold {{ line.status.value|part_status_badge }}">{{ line.status.value|part_status_label }}</span>
+        </span>
+        <p class="text-xs text-muted">Ce statut suit le remboursement.</p>
+      </div>
+      {% else %}
+      {% include "components/champ_formulaire.html" with field=line.status hide_optional=True %}
+      {% endif %}
+    </div>
+  </div>
+
+  {% if not line.is_purchase %}
+  <button type="button" class="inline-flex min-h-10 items-center gap-1 self-start text-sm text-danger hover:underline"
+          @click="retiree = true; $nextTick(() => { $refs.remettre.focus(); $dispatch('change'); })"
+          aria-describedby="{{ line.label.auto_id }}">
+    {% include "components/icone.html" with name="x" class="size-4" %}Retirer la ligne
+  </button>
+  {% endif %}
+</fieldset>
+</div>
+{% endpartialdef %}
+
+{% partialdef apercu %}
+{# Aperçu calculé par le serveur pendant la saisie (aucun calcul dans le navigateur). #}
+{% if preview_lines %}
+<ul class="flex flex-col gap-1">
+  {% for entry, allocated in preview_lines %}
+  <li class="flex justify-between gap-3"><span class="min-w-0 truncate">{{ entry.label }}</span><span class="shrink-0 tabular-nums">{{ allocated|euros }}</span></li>
+  {% endfor %}
+</ul>
+{% endif %}
+{% if preview %}
+<dl class="mt-2 grid grid-cols-[1fr_auto] gap-x-3 gap-y-1 border-t border-border pt-2">
+  <dt class="text-muted">Somme des lignes</dt><dd class="text-right tabular-nums">{{ preview.lines_sum|euros }}</dd>
+  <dt class="text-muted">{% if preview.shipping < 0 %}Remise{% else %}Frais de port{% endif %}</dt><dd class="text-right tabular-nums">{{ preview.shipping|euros }}</dd>
+  <dt class="font-semibold">Montant payé{% if preview.total_is_lines_sum %} <span class="font-normal text-muted">(somme des lignes)</span>{% endif %}</dt>
+  <dd class="text-right font-semibold tabular-nums">{{ preview.total_paid|euros }}</dd>
+</dl>
+{% if preview.shipping and preview_lines|length > 1 %}
+<p class="mt-1 text-xs text-muted">Les frais de port sont répartis sur les lignes selon leur prix.</p>
+{% endif %}
+{% endif %}
+{% endpartialdef %}
+
+{% block content %}
+<div class="flex max-w-4xl flex-col gap-3"
+     x-data="{ payeur: '{{ form.payer.value|default:''|escapejs }}', fichiers: [], envoi: false }">
+  <a href="{{ back_url }}" class="inline-flex min-h-10 items-center gap-1 self-start text-sm text-accent-ink hover:underline">
+    {% include "components/icone.html" with name="arrow-left" class="size-4" %}Retour
+  </a>
+
+  <div>
+    <h1 class="text-xl font-semibold">{% if expense %}Modifier la dépense{% else %}Ajouter une dépense{% endif %}</h1>
+    <p class="mt-1 break-words text-muted">
+      {% if ordering_parts %}Commande des pièces cochées : indique le vrai prix de chacune, puis le paiement. Elles passeront en « Commandé ».
+      {% elif vehicle %}Pour {{ vehicle.display_name }}. Une ligne peut aussi concerner un autre véhicule ou le garage.
+      {% elif not expense %}Dépense du garage (outillage, consommables…). Choisis un véhicule sur une ligne s'il y a lieu.
+      {% else %}Du {{ expense.date|date:"d/m/Y" }}{% if expense.supplier %} chez {{ expense.supplier.name }}{% endif %}.{% endif %}
+    </p>
+    {% if trade_in_notice %}
+    <p class="mt-1 break-words text-sm text-muted">{{ trade_in_notice }}</p>
+    {% endif %}
+  </div>
+
+  {# `envoi` désactive le bouton après le premier clic : un double-clic n'enregistre pas deux dépenses. #}
+  <form id="formulaire-depense" method="post" enctype="multipart/form-data" novalidate class="flex flex-col gap-3" @submit="envoi = true">
+    {% csrf_token %}
+    {% for error in form.non_field_errors %}<p class="text-sm text-danger" role="alert">{{ error }}</p>{% endfor %}
+
+    <section aria-labelledby="rubrique-paiement" class="flex flex-col gap-4 rounded-card border border-border bg-surface p-4">
+      <h2 id="rubrique-paiement" class="text-base font-semibold">Le paiement</h2>
+      <div class="grid gap-4 sm:grid-cols-2">
+        {% include "components/champ_formulaire.html" with field=form.date %}
+        {% include "components/champ_formulaire.html" with field=form.order_number %}
+      </div>
+      {% include "components/champ_formulaire.html" with field=form.supplier_name %}
+      <datalist id="fournisseurs">
+        {% for name in form.suppliers %}<option value="{{ name }}"></option>{% endfor %}
+      </datalist>
+    </section>
+
+    <section aria-labelledby="rubrique-lignes" class="flex flex-col gap-3 rounded-card border border-border bg-surface p-4"
+             x-data="{
+               total: {{ formset.total_form_count }},
+               ajouter() {
+                 // La ligne précédente encore gardée (pas retirée) : la nouvelle reprend sa catégorie et son véhicule.
+                 const precedente = [...this.$refs.lignes.querySelectorAll('[data-ligne]')].reverse()
+                   .find((ligne) => ligne.querySelector('input[name$=DELETE]').value !== 'on');
+                 const html = this.$refs.modele.innerHTML.replaceAll('__prefix__', this.total);
+                 this.$refs.lignes.insertAdjacentHTML('beforeend', html);
+                 this.total++;
+                 document.getElementById('id_lignes-TOTAL_FORMS').value = this.total;
+                 if (!precedente) return;
+                 const nouvelle = this.$refs.lignes.lastElementChild;
+                 this.$nextTick(() => {
+                   for (const champ of ['category', 'vehicle']) {
+                     const source = precedente.querySelector('select[name$=' + champ + ']');
+                     const cible = nouvelle.querySelector('select[name$=' + champ + ']');
+                     if (source && cible && [...cible.options].some((option) => option.value === source.value)) {
+                       cible.value = source.value;
+                       cible.dispatchEvent(new Event('change', { bubbles: true }));
+                     }
+                   }
+                 });
+               }
+             }">
+      <h2 id="rubrique-lignes" class="text-base font-semibold">Ce qui a été acheté</h2>
+      {{ formset.management_form }}
+      {% for error in formset.non_form_errors %}<p class="text-sm text-danger" role="alert">{{ error }}</p>{% endfor %}
+      <div x-ref="lignes" class="flex flex-col gap-3">
+        {% for line in formset %}{% partial ligne %}{% endfor %}
+      </div>
+      {% if not trade_in_locked %}{# L'achat d'une reprise garde sa ligne unique (D51). #}
+      <template x-ref="modele">{% with line=formset.empty_form %}{% partial ligne %}{% endwith %}</template>
+      <button type="button" class="btn-secondary self-start" @click="ajouter()">
+        {% include "components/icone.html" with name="plus" class="size-4" %}Ajouter une ligne
+      </button>
+      {% endif %}
+
+      {% include "components/champ_formulaire.html" with field=form.total_paid hide_optional=True %}
+
+      <div id="apercu" aria-live="polite" class="rounded-control bg-page p-3 text-sm empty:hidden"
+           hx-post="{% url 'expenses:preview' %}{% if expense %}?depense={{ expense.pk }}{% elif vehicle %}?vehicule={{ vehicle.number }}{% endif %}"
+           hx-trigger="load, change from:#formulaire-depense, input changed delay:600ms from:#formulaire-depense"
+           hx-swap="innerHTML" hx-sync="this:replace"></div>
+    </section>
+
+    <section aria-labelledby="rubrique-payeur" class="flex flex-col gap-4 rounded-card border border-border bg-surface p-4">
+      {% include "components/choix_payeurs.html" %}
+    </section>
+
+    <section aria-labelledby="rubrique-facture" class="flex flex-col gap-3 rounded-card border border-border bg-surface p-4">
+      <h2 id="rubrique-facture" class="text-base font-semibold">Facture <span class="font-normal text-muted">(facultatif)</span></h2>
+      {% if invoices %}
+      <p class="text-sm text-muted">Déjà jointes : {% for invoice in invoices %}{{ invoice.file_name }}{% if not forloop.last %}, {% endif %}{% endfor %}.</p>
+      {% endif %}
+      <label class="btn-secondary cursor-pointer self-start has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-accent">
+        {% include "components/icone.html" with name="paperclip" class="size-4" %}Choisir des factures
+        <input type="file" name="factures" multiple accept=".pdf,image/jpeg,image/png,image/webp" class="sr-only"
+               aria-describedby="aide-factures"
+               @change="fichiers = Array.from($event.target.files).map(f => f.name)">
+      </label>
+      <ul x-show="fichiers.length" x-cloak class="flex flex-col gap-1 text-sm">
+        <template x-for="nom in fichiers"><li class="break-words" x-text="nom"></li></template>
+      </ul>
+      <p id="aide-factures" class="text-xs text-muted">PDF ou photo (JPEG, PNG, WebP), 20 Mo au plus par fichier.</p>
+      {% for name, reason in refused_invoices %}<p class="text-xs text-danger">{{ name }} n'a pas été jointe. {{ reason }}</p>{% endfor %}
+      {% if invoices_to_choose_again %}<p class="text-xs text-danger">Rien n'est encore enregistré : choisis de nouveau tes factures avant d'enregistrer.</p>{% endif %}
+    </section>
+
+    <section aria-labelledby="rubrique-autres" class="flex flex-col gap-4 rounded-card border border-border bg-surface p-4">
+      <h2 id="rubrique-autres" class="text-base font-semibold">Autres informations</h2>
+      <div class="flex flex-col gap-1">
+        <label class="flex min-h-10 cursor-pointer items-start gap-3">
+          <input type="checkbox" name="{{ form.is_personal.html_name }}" id="{{ form.is_personal.id_for_label }}"
+                 class="mt-1 size-4 accent-accent" aria-describedby="{{ form.is_personal.auto_id }}_helptext"
+                 {% if form.is_personal.value %}checked{% endif %}>
+          <span>
+            <span class="font-semibold">{{ form.is_personal.label }}</span>
+            <span id="{{ form.is_personal.auto_id }}_helptext" class="block text-xs text-muted">{{ form.is_personal.help_text }}</span>
+          </span>
+        </label>
+        {% for error in form.is_personal.errors %}<p class="text-xs text-danger">{{ error }}</p>{% endfor %}
+      </div>
+      {% include "components/champ_formulaire.html" with field=form.notes %}
+    </section>
+
+    <div class="flex flex-wrap gap-2">
+      <button type="submit" class="btn-primary" :disabled="envoi" :aria-disabled="envoi.toString()">Enregistrer la dépense</button>
+      <a href="{{ back_url }}" class="btn-secondary">Annuler</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

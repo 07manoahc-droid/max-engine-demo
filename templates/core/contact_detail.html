@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% load ui_tags %}
+{# Fiche d'un contact (D81) : coordonnées et véhicules liés. La corbeille ne le détache pas. #}
+
+{% block title %}{{ contact.name }} · {{ garage_name }}{% endblock %}
+
+{% block content %}
+<div class="flex max-w-4xl flex-col gap-3">
+  <a href="{% url 'core:contacts' %}" class="inline-flex min-h-10 items-center gap-1 self-start text-sm text-accent-ink hover:underline">
+    {% include "components/icone.html" with name="arrow-left" class="size-4" %}Retour aux contacts
+  </a>
+
+  <header class="flex flex-wrap items-start justify-between gap-3">
+    <h1 class="min-w-0 break-words text-xl font-semibold">{{ contact.name }}</h1>
+    {% if not read_only %}
+    <div class="flex flex-wrap gap-2">
+      <a href="{% url 'core:contact_edit' contact.pk %}" class="btn-secondary">
+        {% include "components/icone.html" with name="pencil" class="size-4" %}Modifier le contact
+      </a>
+      <form method="post" action="{% url 'core:contact_trash' contact.pk %}" x-data
+            @submit="if (!confirm('Mettre ce contact à la corbeille ? Il reste lié à ses véhicules. Tu pourras le restaurer.')) $event.preventDefault()">
+        {% csrf_token %}
+        <button type="submit" class="btn-danger">
+          {% include "components/icone.html" with name="trash" class="size-4" %}Mettre à la corbeille
+        </button>
+      </form>
+    </div>
+    {% endif %}
+  </header>
+
+  <section aria-labelledby="titre-coordonnees" class="rounded-card border border-border bg-surface p-4">
+    <h2 id="titre-coordonnees" class="text-base font-semibold">Coordonnées</h2>
+    <dl class="mt-3 grid grid-cols-[max-content_1fr] gap-x-6 gap-y-2">
+      {% include "components/info.html" with label="Téléphone" value=contact.phone %}
+      {% include "components/info.html" with label="E-mail" value=contact.email %}
+      {% include "components/info.html" with label="Ville" value=contact.city %}
+      <div class="contents">
+        <dt class="text-muted">Leboncoin</dt>
+        <dd class="min-w-0">
+          {% if contact.leboncoin_profile %}
+          <a href="{{ contact.leboncoin_profile }}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-accent-ink hover:underline">
+            Ouvrir son profil{% include "components/icone.html" with name="external-link" class="size-4" %}
+          </a>
+          {% else %}<span class="text-muted">—</span>{% endif %}
+        </dd>
+      </div>
+    </dl>
+    {% if contact.notes %}
+    <p class="mt-3 break-words text-sm"><span class="text-muted">Notes :</span> {{ contact.notes|linebreaksbr }}</p>
+    {% endif %}
+  </section>
+
+  <section aria-labelledby="titre-vehicules" class="rounded-card border border-border bg-surface p-4">
+    <h2 id="titre-vehicules" class="flex items-center gap-2 text-base font-semibold">
+      {% include "components/icone.html" with name="motorbike" class="size-4" %}Véhicules
+    </h2>
+    <ul class="mt-2">
+      {% for role in roles %}
+      <li class="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border py-2 first:border-t-0">
+        <span class="inline-flex min-h-6 items-center rounded-control px-2 text-xs font-semibold {% neutral_badge %}">{{ role.text }}{% if role.note %} ({{ role.note }}){% endif %}</span>
+        {% if role.vehicle_url %}
+        <a href="{{ role.vehicle_url }}" class="inline-flex min-h-10 min-w-0 items-center break-words text-accent-ink hover:underline">{{ role.vehicle.display_name }}</a>
+        {% else %}
+        <span class="min-w-0 break-words text-muted">{{ role.vehicle.display_name }} (fiche à la corbeille)</span>
+        {% endif %}
+      </li>
+      {% empty %}
+      <li class="py-2 text-muted">Aucun véhicule lié pour l'instant.</li>
+      {% endfor %}
+    </ul>
+  </section>
+</div>
+{% endblock %}

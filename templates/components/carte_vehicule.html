@@ -1,0 +1,29 @@
+{% load ui_tags %}{# Carte d'un véhicule : `card` = {vehicle, cover (photo ou None), invested, shares : [(associé, montant)]}. #}
+<a href="{{ card.vehicle.get_absolute_url }}"
+   class="flex flex-col overflow-hidden rounded-card border border-border bg-surface hover:border-accent">
+  {% if card.cover %}
+  <img src="{{ card.cover|thumbnail_url }}" alt="" loading="lazy" class="aspect-[16/9] w-full bg-page object-cover">
+  {% else %}
+  <div class="grid aspect-[16/9] place-items-center bg-page text-muted" aria-hidden="true">
+    {% include "components/icone.html" with name="motorbike" class="size-12" %}
+  </div>
+  {% endif %}
+  <div class="flex flex-1 flex-col gap-3 p-4">
+    <div class="flex flex-col items-start gap-1">
+      <h2 class="text-base font-semibold break-words">{{ card.vehicle.display_name }}</h2>
+      {% include "components/badge_statut.html" with status=card.vehicle.status %}
+    </div>
+    <div>
+      <p class="text-[11px] font-semibold text-muted">Investi</p>
+      <p class="text-[22px] font-semibold leading-tight">{{ card.invested|euros }}</p>
+    </div>
+    <div class="mt-auto grid grid-cols-2 gap-2">
+      {% for partner, amount in card.shares %}
+      <div class="rounded-control px-2 py-1 {{ partner.color|partner_badge }}">
+        <p class="text-[11px] font-semibold">{{ partner.name }}</p>
+        <p class="text-sm font-semibold">{{ amount|euros }}</p>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</a>

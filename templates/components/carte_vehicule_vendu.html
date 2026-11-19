@@ -1,0 +1,37 @@
+{% load ui_tags %}{# Carte d'un véhicule vendu : `card` = {vehicle, cover (photo ou None), sale, margin (MarginDisplay), shares : [(associé, montant sans signe)]}. #}
+<a href="{{ card.vehicle.get_absolute_url }}"
+   class="flex flex-col overflow-hidden rounded-card border border-border bg-surface hover:border-accent">
+  {% if card.cover %}
+  <img src="{{ card.cover|thumbnail_url }}" alt="" loading="lazy" class="aspect-[16/9] w-full bg-page object-cover">
+  {% else %}
+  <div class="grid aspect-[16/9] place-items-center bg-page text-muted" aria-hidden="true">
+    {% include "components/icone.html" with name="motorbike" class="size-12" %}
+  </div>
+  {% endif %}
+  <div class="flex flex-1 flex-col gap-3 p-4">
+    <div class="flex flex-col items-start gap-1">
+      <h2 class="text-base font-semibold break-words">{{ card.vehicle.display_name }}</h2>
+      <p class="text-xs text-muted">Vendu le {{ card.sale.date|date:"d/m/Y" }}</p>
+    </div>
+    <div class="grid grid-cols-2 gap-2">
+      <div>
+        <p class="text-[11px] font-semibold text-muted">Prix de vente</p>
+        <p class="text-[17px] font-semibold leading-tight">{{ card.sale.price|euros }}</p>
+      </div>
+      <div>
+        <p class="text-[11px] font-semibold text-muted">Marge</p>
+        <p class="text-[17px] font-semibold leading-tight">{% if card.margin.is_loss %}Perte de {% endif %}{{ card.margin.shown_margin|euros }}</p>
+      </div>
+    </div>
+    {% if card.shares %}
+    <div class="mt-auto grid grid-cols-2 gap-2">
+      {% for partner, amount in card.shares %}
+      <div class="rounded-control px-2 py-1 {{ partner.color|partner_badge }}">
+        <p class="text-[11px] font-semibold">{% if card.margin.is_loss %}Perte pour{% else %}Pour{% endif %} {{ partner.name }}</p>
+        <p class="text-sm font-semibold">{{ amount|euros }}</p>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+</a>

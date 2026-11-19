@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% load ui_tags partials %}
+
+{% block title %}Enregistrer le règlement · {{ garage_name }}{% endblock %}
+
+{% partialdef apercu %}
+{# Aperçu calculé par le serveur pendant la saisie (aucun calcul dans le navigateur). #}
+{% if problem %}
+<p class="text-danger" role="alert">{{ problem }}</p>
+{% else %}
+<p class="font-semibold">{{ after_sentence }}</p>
+{% endif %}
+{% endpartialdef %}
+
+{% block content %}
+<div class="flex max-w-xl flex-col gap-3" x-data="{ envoi: false }">
+  <a href="{% if return_vehicle %}{{ return_vehicle.get_absolute_url }}{% else %}{% url 'accounting:accounts' %}{% endif %}" class="inline-flex min-h-10 items-center gap-1 self-start text-sm text-accent-ink hover:underline">
+    {% include "components/icone.html" with name="arrow-left" class="size-4" %}Retour
+  </a>
+
+  <div>
+    <h1 class="text-xl font-semibold">Enregistrer le règlement</h1>
+    <p class="mt-1 text-muted">{{ balance_sentence }}.</p>
+  </div>
+
+  {# `envoi` désactive le bouton après le premier clic ; le service refuse aussi un second envoi. #}
+  <form id="formulaire-reglement" method="post" novalidate class="flex flex-col gap-3" @submit="envoi = true">
+    {% csrf_token %}
+    {{ form.from_partner }}{{ form.to_partner }}{{ form.seen_due }}
+    {% for error in form.non_field_errors %}
+    <p class="text-sm text-danger" role="alert">{{ error }}</p>
+    {% endfor %}
+
+    <section aria-label="Le règlement" class="flex flex-col gap-4 rounded-card border border-border bg-surface p-4">
+      {% if debtor and creditor %}
+      <p class="flex flex-wrap items-center gap-1 text-sm">
+        <span class="inline-flex min-h-6 items-center rounded-control px-2 text-xs font-semibold {{ debtor.color|partner_badge }}">{{ debtor.name }}</span>
+        <span>verse à</span>
+        <span class="inline-flex min-h-6 items-center rounded-control px-2 text-xs font-semibold {{ creditor.color|partner_badge }}">{{ creditor.name }}</span>
+      </p>
+      {% endif %}
+      <div class="grid gap-4 sm:grid-cols-2">
+        {% include "components/champ_formulaire.html" with field=form.amount %}
+        {% include "components/champ_formulaire.html" with field=form.date %}
+      </div>
+      {% include "components/champ_formulaire.html" with field=form.notes %}
+      <div id="apercu" aria-live="polite" class="rounded-control bg-page p-3 text-sm empty:hidden"
+           hx-post="{% url 'accounting:settlement_preview' %}"
+           hx-include="#formulaire-reglement"
+           hx-trigger="load, input changed delay:600ms from:#id_amount"
+           hx-swap="innerHTML" hx-sync="this:replace"></div>
+    </section>
+
+    <div class="flex flex-wrap gap-2">
+      <button type="submit" class="btn-primary" :disabled="envoi" :aria-disabled="envoi.toString()">Enregistrer le règlement</button>
+      <a href="{% if return_vehicle %}{{ return_vehicle.get_absolute_url }}{% else %}{% url 'accounting:accounts' %}{% endif %}" class="btn-secondary">Retour</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

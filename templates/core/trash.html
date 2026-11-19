@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% comment %}
+  Corbeille (D74, D75) : chaque élément dit quand et par qui il a été mis de côté, puis
+  « Restaurer », ou pourquoi ce n'est pas possible et quoi faire avant.
+{% endcomment %}
+
+{% block title %}Corbeille · {{ garage_name }}{% endblock %}
+
+{% block content %}
+<div class="flex max-w-4xl flex-col gap-3">
+  <header>
+    <h1 class="text-xl font-semibold">Corbeille</h1>
+    <p class="mt-1 text-muted">Rien n'est effacé pour de bon : ce qui est ici peut revenir à sa place.</p>
+  </header>
+
+  {% for group in groups %}
+  <section aria-labelledby="corbeille-{{ forloop.counter }}" class="rounded-card border border-border bg-surface p-4">
+    <h2 id="corbeille-{{ forloop.counter }}" class="text-base font-semibold">{{ group.title }} <span class="font-normal text-muted">· {{ group.items|length }}</span></h2>
+    <ul class="mt-2">
+      {% for item in group.items %}
+      <li class="flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-border py-3 first:border-t-0">
+        <div class="min-w-0 flex-1">
+          <p class="break-words font-semibold">{{ item.title }}</p>
+          {% if item.detail %}<p class="break-words text-sm text-muted">{{ item.detail }}</p>{% endif %}
+          <p class="text-xs text-muted">Mis à la corbeille le {{ item.deleted_at|date:"d/m/Y à H:i" }}{% if item.deleted_by %} par {{ item.deleted_by }}{% endif %}</p>
+        </div>
+        {% if item.refusal %}
+        <p class="flex basis-full items-start gap-2 text-sm text-muted sm:basis-72">
+          {% include "components/icone.html" with name="lock" class="mt-0.5 size-4" %}<span>{{ item.refusal }}</span>
+        </p>
+        {% elif not read_only %}
+        <form method="post" action="{% url 'core:trash_restore' item.kind item.pk %}">
+          {% csrf_token %}
+          <button type="submit" class="btn-secondary" aria-label="Restaurer : {{ item.title }}">
+            {% include "components/icone.html" with name="arrow-back-up" class="size-4" %}Restaurer
+          </button>
+        </form>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% empty %}
+  <section class="rounded-card border border-border bg-surface p-4">
+    <p class="text-muted">La corbeille est vide.</p>
+  </section>
+  {% endfor %}
+</div>
+{% endblock %}

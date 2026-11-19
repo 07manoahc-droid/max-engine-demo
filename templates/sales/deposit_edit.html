@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% load ui_tags %}
+
+{% block title %}Corriger l'acompte · {{ garage_name }}{% endblock %}
+
+{% block content %}
+<div class="flex max-w-xl flex-col gap-3"
+     x-data="{ contact: '{{ form.buyer.value|default:''|escapejs }}', envoi: false }">
+  <a href="{{ vehicle.get_absolute_url }}" class="inline-flex min-h-10 items-center gap-1 self-start text-sm text-accent-ink hover:underline">
+    {% include "components/icone.html" with name="arrow-left" class="size-4" %}Retour
+  </a>
+
+  <div>
+    <h1 class="text-xl font-semibold">Corriger l'acompte</h1>
+    <p class="mt-1 break-words text-muted">{{ deposit.total|euros }} reçus par {{ deposit.receivers_label }}, pour {{ vehicle.display_name }}.</p>
+  </div>
+
+  <form method="post" novalidate class="flex flex-col gap-3" @submit="envoi = true">
+    {% csrf_token %}
+    {% for error in form.non_field_errors %}
+    <p class="text-sm text-danger" role="alert">{{ error }}</p>
+    {% endfor %}
+
+    <section aria-label="La réservation" class="flex flex-col gap-4 rounded-card border border-border bg-surface p-4">
+      {% include "components/champ_formulaire.html" with field=form.date %}
+      <p class="text-xs text-muted">Pour corriger un montant ou qui l'a reçu, reviens à la fiche et clique sur « Corriger » à côté du versement. Pour un complément, utilise « Ajouter un versement ».</p>
+    </section>
+
+    <section aria-labelledby="rubrique-acheteur" class="flex flex-col gap-4 rounded-card border border-border bg-surface p-4">
+      <h2 id="rubrique-acheteur" class="text-base font-semibold">L'acheteur</h2>
+      {% include "components/champ_contact.html" with field=form.buyer %}
+    </section>
+
+    <div class="flex flex-wrap gap-2">
+      <button type="submit" class="btn-primary" :disabled="envoi" :aria-disabled="envoi.toString()">Enregistrer</button>
+      <a href="{{ vehicle.get_absolute_url }}" class="btn-secondary">Annuler</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,122 @@
+{% load ui_tags %}{% comment %}
+Vente de la fiche véhicule : celle en cours (`sale_block`, voir `_sale_block`), avec ses actions et
+ses comptes, puis les ventes annulées (`cancelled_sales`). Aucun calcul ici : tout vient de la vue.
+{% endcomment %}
+{% if sale_block or cancelled_sales %}
+<section aria-labelledby="titre-vente" class="rounded-card border border-border bg-surface p-4">
+  <div class="flex flex-wrap items-center justify-between gap-2">
+    <h2 id="titre-vente" class="flex items-center gap-2 text-base font-semibold">
+      {% include "components/icone.html" with name="cash" class="size-4" %}Vente
+    </h2>
+    {% if sale_block and not read_only %}
+    <div class="flex flex-wrap gap-2">
+      <a href="{% url 'sales:sale_edit' sale_block.sale.pk %}" class="btn-secondary">
+        {% include "components/icone.html" with name="pencil" class="size-4" %}Modifier la vente
+      </a>
+      <a href="{% url 'sales:sale_cancel' sale_block.sale.pk %}" class="btn-secondary">
+        {% include "components/icone.html" with name="x" class="size-4" %}Annuler la vente
+      </a>
+    </div>
+    {% endif %}
+  </div>
+
+  {% if sale_block %}
+  {% with sale=sale_block.sale accounts=sale_block.accounts %}
+  <dl class="mt-3 grid grid-cols-[max-content_1fr] gap-x-6 gap-y-2">
+    {% include "components/info.html" with label="Prix de vente" value=sale.price|euros %}
+    {% include "components/info.html" with label="Vendu le" value=sale.date|date:"d/m/Y" %}
+    {% include "components/info_contact.html" with label="Acheteur" contact=sale.buyer %}
+    {% include "components/info.html" with label="Où et comment" value=sale.sold_where %}
+    {% if sale.trade_in_vehicle %}
+    <div class="contents">
+      <dt class="text-muted">Reprise</dt>
+      {# Une fiche reprise mise à la corbeille (par l'administration de secours) n'a plus de page : pas de lien. #}
+      <dd class="min-w-0 break-words">{% if sale.trade_in_vehicle.is_deleted %}{{ sale.trade_in_vehicle.display_name }} <span class="text-muted">(fiche à la corbeille)</span>{% else %}<a href="{{ sale.trade_in_vehicle.get_absolute_url }}" class="text-accent-ink hover:underline">{{ sale.trade_in_vehicle.display_name }}</a>{% endif %} · <span class="tabular-nums">{{ sale.trade_in_value|euros }}</span></dd>
+    </div>
+    {% endif %}
+    <div class="contents">
+      <dt class="text-muted">Encaissé par</dt>
+      <dd class="flex flex-wrap gap-2">
+        {% for receipt in sale_block.receipts %}
+        <span class="inline-flex min-h-6 items-center gap-1 rounded-control px-2 text-xs font-semibold {{ receipt.partner.color|partner_badge }}">{{ receipt.partner.name }} · {{ receipt.amount|euros }}</span>
+        {% endfor %}
+        {% for partner, amount in sale_block.deposit.by_receiver %}
+        <span class="inline-flex min-h-6 items-center gap-1 rounded-control px-2 text-xs font-semibold {{ partner.color|partner_badge }}">{{ partner.name }} · {{ amount|euros }} d'acompte</span>
+        {% endfor %}
+        {% if not sale_block.receipts and not sale_block.deposit %}<span class="text-muted">—</span>{% endif %}
+      </dd>
+    </div>
+  </dl>
+  {% if sale.notes %}<p class="mt-3 break-words text-sm">{{ sale.notes|linebreaksbr }}</p>{% endif %}
+
+  {% if accounts %}
+  <div class="mt-4 grid gap-3 sm:grid-cols-3">
+    {% with montant=accounts.margin.shown_margin|euros %}
+    {% if accounts.margin.is_loss %}
+    {% include "components/tuile_indicateur.html" with label="Marge" value="Perte de "|add:montant %}
+    {% else %}
+    {% include "components/tuile_indicateur.html" with label="Marge" value=montant %}
+    {% endif %}
+    {% endwith %}
+    {% for partner, amount in accounts.gains %}
+    {% if accounts.margin.is_loss %}
+    {% include "components/tuile_indicateur.html" with label="Perte pour "|add:partner.name value=amount|euros partner=partner %}
+    {% else %}
+    {% include "components/tuile_indicateur.html" with label="Pour "|add:partner.name value=amount|euros partner=partner %}
+    {% endif %}
+    {% endfor %}
+  </div>
+
+  <div class="mt-3 overflow-x-auto">
+    <table class="w-full text-sm">
+      <caption class="sr-only">Ce que chacun a avancé, gagné et encaissé pour ce véhicule</caption>
+      <thead>
+        <tr class="text-left">
+          <th scope="col" class="py-2 font-normal text-muted"><span class="sr-only">Ligne</span></th>
+          {% for partner in accounts.partners %}<th scope="col" class="py-2 text-right font-semibold">{{ partner.name }}</th>{% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for label, amounts in accounts.rows %}
+        <tr class="border-t border-border">
+          <th scope="row" class="py-2 text-left font-normal text-muted">{{ label }}</th>
+          {% for amount in amounts %}<td class="py-2 text-right tabular-nums">{{ amount|euros }}</td>{% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="mt-3 rounded-control bg-page p-3">
+    <p class="text-xs font-semibold text-muted">Solde actuel entre vous</p>
+    <p class="mt-1 text-base font-semibold">{{ accounts.balance }}</p>
+    {% if accounts.differs %}
+    <p class="mt-1 text-xs text-muted">Ce solde compte tout le garage. Pour ce véhicule seul : {{ accounts.vehicle_balance }}.</p>
+    {% endif %}
+    {% if not accounts.settled and not read_only %}
+    <a href="{% url 'accounting:settlement_create' %}?vehicule={{ vehicle.number }}" class="btn-secondary mt-2">
+      {% include "components/icone.html" with name="switch-horizontal" class="size-4" %}Enregistrer le règlement
+    </a>
+    {% endif %}
+  </div>
+  {% else %}
+  <p class="mt-3 text-sm text-danger">Les parts de chacun ne peuvent pas être calculées pour l'instant. Préviens Mathis.</p>
+  {% endif %}
+
+  <p class="mt-3 text-sm text-muted">N'oublie pas les démarches : le certificat de cession signé avec l'acheteur, puis la déclaration de cession en ligne.</p>
+  {% endwith %}
+  {% endif %}
+
+  {% if cancelled_sales %}
+  <h3 class="mt-3 text-sm font-semibold">Ventes annulées</h3>
+  <ul class="mt-1">
+    {% for sale in cancelled_sales %}
+    <li class="flex flex-wrap items-center gap-2 border-t border-border py-2 text-sm first:border-t-0">
+      <span class="min-w-0 flex-1 break-words">Vente du {{ sale.date|date:"d/m/Y" }} · <span class="font-semibold tabular-nums">{{ sale.price|euros }}</span>{% if sale.trade_in_vehicle %} · reprise de {{ sale.trade_in_vehicle.display_name }} pour <span class="tabular-nums">{{ sale.trade_in_value|euros }}</span>{% endif %}</span>
+      <span class="inline-flex min-h-6 items-center rounded-control px-2 text-xs font-semibold {% neutral_badge %}">Annulée le {{ sale.cancelled_at|date:"d/m/Y" }}</span>
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+</section>
+{% endif %}

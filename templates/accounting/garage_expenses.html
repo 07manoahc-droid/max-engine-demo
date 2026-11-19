@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% load ui_tags %}
+
+{% block title %}Dépenses du garage · {{ garage_name }}{% endblock %}
+
+{% block content %}
+<div class="flex max-w-4xl flex-col gap-3">
+  <header class="flex flex-col gap-2">
+    <h1 class="text-xl font-semibold">Comptes</h1>
+    {% include "components/onglets_comptes.html" %}
+  </header>
+
+  <div class="flex flex-wrap items-center justify-between gap-3">
+    <nav aria-labelledby="titre-annees" class="flex flex-wrap items-center gap-1">
+      <span id="titre-annees" class="mr-1 text-sm text-muted">Année :</span>
+      {% for choice in years %}
+      <a href="?annee={{ choice }}"
+         {% if choice == year %}aria-current="page"{% endif %}
+         class="inline-flex min-h-10 items-center rounded-control px-3 text-sm tabular-nums {% if choice == year %}bg-accent-bg font-semibold text-accent-ink{% else %}hover:bg-page{% endif %}">{{ choice }}</a>
+      {% endfor %}
+    </nav>
+    {% if not read_only %}
+    <a href="{% url 'expenses:create' %}?depuis=garage" class="btn-primary">
+      {% include "components/icone.html" with name="plus" class="size-4" %}Ajouter une dépense du garage
+    </a>
+    {% endif %}
+  </div>
+
+  {% if report %}
+  <div class="grid gap-3 sm:grid-cols-3">
+    {% with annee=year|stringformat:"d" %}
+    {% include "components/tuile_indicateur.html" with label="Dépenses du garage en "|add:annee value=report.total|euros %}
+    {% endwith %}
+    {% for partner, amount in shares %}
+    {% include "components/tuile_indicateur.html" with label="Pour "|add:partner.name value=amount|euros partner=partner %}
+    {% endfor %}
+  </div>
+  <p class="text-sm text-muted">Outillage, consommables et autres achats sans véhicule. Ils sont à vous deux, moitié chacun, quel que soit celui qui a payé : le solde en tient compte.</p>
+
+  <section aria-labelledby="titre-depenses-garage" class="rounded-card border border-border bg-surface p-4">
+    <h2 id="titre-depenses-garage" class="text-base font-semibold">Dépenses de {{ year }}</h2>
+    {% if rows %}
+    <ul class="mt-2">
+      {% for row in rows %}
+      <li class="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border py-2 first:border-t-0">
+        <a href="{{ row.expense.get_absolute_url }}" class="flex min-h-10 min-w-0 flex-1 flex-col justify-center rounded-control hover:underline">
+          <span class="block break-words font-semibold">{{ row.labels }}</span>
+          <span class="text-xs text-muted">
+            {{ row.expense.date|date:"d/m/Y" }}{% if row.expense.supplier %} · {{ row.expense.supplier.name }}{% endif %} · {{ row.categories|join:", " }}
+          </span>
+          {% if row.shared %}<span class="text-xs text-muted">Commande partagée avec un véhicule : seule la part du garage est comptée ici.</span>{% endif %}
+        </a>
+        {% for partner in row.payers %}
+        <span class="inline-flex min-h-6 items-center rounded-control px-2 text-xs font-semibold {{ partner.color|partner_badge }}">{{ partner.name }}</span>
+        {% endfor %}
+        <span class="ml-auto text-right font-semibold tabular-nums">{{ row.cost|euros }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="mt-2 text-sm text-muted">Aucune dépense du garage en {{ year }}.{% if not read_only %} Ajoute la première.{% endif %}</p>
+    {% endif %}
+  </section>
+
+  {% if personal_rows %}
+  <section aria-labelledby="titre-achats-personnels" class="rounded-card border border-border bg-page p-4 text-muted">
+    <h2 id="titre-achats-personnels" class="text-base font-semibold">Achats personnels (hors comptes)</h2>
+    <p class="mt-1 text-sm">Gardés pour mémoire : ils ne comptent ni dans le total, ni dans le solde.</p>
+    <ul class="mt-2">
+      {% for row in personal_rows %}
+      <li class="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border py-2 first:border-t-0">
+        <a href="{{ row.expense.get_absolute_url }}" class="flex min-h-10 min-w-0 flex-1 flex-col justify-center rounded-control hover:underline">
+          <span class="block break-words">{{ row.labels }}</span>
+          <span class="text-xs">{{ row.expense.date|date:"d/m/Y" }}{% if row.expense.supplier %} · {{ row.expense.supplier.name }}{% endif %}</span>
+        </a>
+        <span class="ml-auto text-right tabular-nums">{{ row.expense.total_paid|euros }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% endif %}
+  {% else %}
+  <section class="rounded-card border border-danger bg-surface p-4">
+    <p class="text-sm text-danger" role="alert">Les dépenses du garage ne peuvent pas être partagées pour l'instant. Préviens Mathis.</p>
+  </section>
+  {% endif %}
+</div>
+{% endblock %}

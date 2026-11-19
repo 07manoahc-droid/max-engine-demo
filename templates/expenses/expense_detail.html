@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+{% load ui_tags %}
+
+{% block title %}Dépense du {{ expense.date|date:"d/m/Y" }} · {{ garage_name }}{% endblock %}
+
+{% block content %}
+<div class="flex max-w-4xl flex-col gap-3">
+  <a href="{% if vehicle %}{{ vehicle.get_absolute_url }}{% else %}{% url 'core:home' %}{% endif %}"
+     class="inline-flex min-h-10 items-center gap-1 self-start text-sm text-accent-ink hover:underline">
+    {% include "components/icone.html" with name="arrow-left" class="size-4" %}{% if vehicle %}Retour à la fiche{% else %}Retour à l'accueil{% endif %}
+  </a>
+
+  <header class="flex flex-wrap items-start justify-between gap-3">
+    <div class="min-w-0">
+      <h1 class="text-xl font-semibold">Dépense du {{ expense.date|date:"d/m/Y" }}</h1>
+      <p class="mt-1 flex flex-wrap items-center gap-2 text-muted">
+        {% if expense.supplier %}<span>{{ expense.supplier.name }}</span>{% endif %}
+        {% if expense.order_number %}<span>Commande {{ expense.order_number }}</span>{% endif %}
+        {% if expense.is_personal %}
+        <span class="inline-flex min-h-6 items-center rounded-control px-2 text-xs font-semibold {% neutral_badge %}">Achat personnel · hors calculs</span>
+        {% endif %}
+      </p>
+    </div>
+    {% if not read_only and not locked_vehicles %}
+    <div class="flex flex-wrap gap-2">
+      <a href="{% url 'expenses:edit' expense.pk %}" class="btn-secondary">
+        {% include "components/icone.html" with name="pencil" class="size-4" %}Modifier la dépense
+      </a>
+      {% if not trash_refusal %}
+      {# D74 : la dépense entière sort des comptes, avec ses lignes, paiements et remboursements. #}
+      <form method="post" action="{% url 'expenses:trash' expense.pk %}" x-data
+            @submit="if (!confirm('Mettre cette dépense à la corbeille ? Elle ne comptera plus dans les comptes. Tu pourras la restaurer.')) $event.preventDefault()">
+        {% csrf_token %}
+        <button type="submit" class="btn-danger">
+          {% include "components/icone.html" with name="trash" class="size-4" %}Mettre à la corbeille
+        </button>
+      </form>
+      {% endif %}
+    </div>
+    {% endif %}
+  </header>
+
+  {% if locked_vehicles %}
+  <section aria-label="Dépense verrouillée" class="flex flex-col gap-1 rounded-card border border-border bg-surface p-4">
+    <p class="flex items-center gap-2 font-semibold">
+      {% include "components/icone.html" with name="lock" class="size-4" %}Dépense verrouillée
+    </p>
+    <p class="text-sm text-muted">{% if read_only %}Elle concerne un véhicule vendu :{% else %}Pour la corriger, rouvre la fiche de :{% endif %}
+      {% for locked in locked_vehicles %}<a href="{{ locked.get_absolute_url }}" class="text-accent-ink hover:underline">{{ locked.display_name }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}.
+    </p>
+  </section>
+  {% endif %}
+
+  <section aria-label="Le paiement" class="grid gap-3 sm:grid-cols-3">
+    {% include "components/tuile_indicateur.html" with label="Montant payé" value=expense.total_paid|euros %}
+    {% if shipping < 0 %}
+    {% include "components/tuile_indicateur.html" with label="Remise" value=shipping|euros %}
+    {% else %}
+    {% include "components/tuile_indicateur.html" with label="Frais de port" value=shipping|euros %}
+    {% endif %}
+    <div class="flex flex-col gap-2 rounded-card border border-border bg-surface p-4">
+      <span class="text-xs text-muted">Payé par</span>
+      <div class="flex flex-wrap gap-2">
+        {% for payment in payments %}
+        <span class="inline-flex min-h-6 items-center rounded-control px-2 text-xs font-semibold {{ payment.partner.color|partner_badge }}">{{ payment.partner.name }} · {{ payment.amount|euros }}</span>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="titre-lignes" class="rounded-card border border-border bg-surface p-4">
+    <h2 id="titre-lignes" class="text-base font-semibold">Ce qui a été acheté</h2>
+    <ul class="mt-2">
+      {% for row in rows %}
+      <li class="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border py-2 first:border-t-0">
+        <div class="min-w-0 flex-1">
+          <p class="break-words font-semibold">{{ row.line.label }}{% if row.line.reference %} <span class="font-normal text-muted">· {{ row.line.reference }}</span>{% endif %}</p>
+          <p class="text-xs text-muted">
+            {{ row.line.quantity|floatformat:"-2" }} × {{ row.line.unit_price|euros }} · {{ row.line.category }} ·
+            {% if row.line.vehicle %}<a href="{{ row.line.vehicle.get_absolute_url }}" class="text-accent-ink hover:underline">{{ row.line.vehicle.display_name }}</a>{% else %}Garage{% endif %}
+          </p>
+        </div>
+        {% if row.line.status %}
+        <span class="inline-flex min-h-6 items-center rounded-control px-2 text-xs font-semibold {{ row.line.status|part_status_badge }}">{{ row.line.status|part_status_label }}</span>
+        {% endif %}
+        <span class="ml-auto text-right font-semibold tabular-nums">
+          {% if row.cost %}{{ row.cost.allocated|euros }}{% else %}<span class="font-normal text-muted">pour mémoire</span>{% endif %}
+        </span>
+        {% if row.transfers or row.can_transfer and not read_only %}
+        {# Transferts de la ligne (D90) : la trace de chaque passage, puis le bouton. #}
+        <div class="flex basis-full flex-col gap-1 pl-4">
+          {% for transfer in row.transfers %}
+          <p class="flex flex-wrap items-center gap-x-1 text-sm text-muted">
+            {% include "components/icone.html" with name="switch-horizontal" class="size-4" %}
+            Transférée le {{ transfer.date|date:"d/m/Y" }} du {{ transfer.from_vehicle.display_name }} vers le {{ transfer.to_vehicle.display_name }}{% if transfer.notes %} · {{ transfer.notes }}{% endif %}
+          </p>
+          {% endfor %}
+          {% if row.can_transfer and not read_only %}
+          <a href="{% url 'expenses:line_transfer' row.line.pk %}" class="inline-flex min-h-10 items-center gap-1 self-start rounded-control px-2 text-sm text-accent-ink hover:bg-page"
+             aria-label="Transférer sur un autre véhicule : {{ row.line.label }}">
+            {% include "components/icone.html" with name="switch-horizontal" class="size-4" %}Transférer sur un autre véhicule
+          </a>
+          {% endif %}
+        </div>
+        {% endif %}
+        {% if row.refunds or row.left and not read_only %}
+        {# Retours de la ligne : chacun avec son montant et qui l'a reçu ; 0,00 € = montant à préciser. #}
+        <div class="flex basis-full flex-col gap-1 pl-4">
+          {% for refund in row.refunds %}
+          <div class="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+            {% include "components/icone.html" with name="arrow-back-up" class="size-4 text-muted" %}
+            <span class="min-w-0 flex-1">
+              Retour du {{ refund.date|date:"d/m/Y" }} ·
+              {% if refund.amount %}<span class="font-semibold tabular-nums">{{ refund.amount|euros }}</span> remboursés à{% else %}<span class="font-semibold">montant à préciser</span> · pour{% endif %}
+              <span class="inline-flex min-h-6 items-center rounded-control px-2 text-xs font-semibold {{ refund.refunded_to.color|partner_badge }}">{{ refund.refunded_to.name }}</span>
+              {% if refund.notes %}<span class="block break-words text-xs text-muted">{{ refund.notes }}</span>{% endif %}
+            </span>
+            {% if not read_only and not locked_vehicles %}
+            <a href="{% url 'expenses:refund_edit' refund.pk %}" class="inline-flex min-h-10 items-center gap-1 rounded-control px-2 text-sm text-accent-ink hover:bg-page"
+               aria-label="{% if refund.amount %}Corriger le remboursement{% else %}Préciser le montant du remboursement{% endif %} de {{ row.line.label }}">
+              {% include "components/icone.html" with name="pencil" class="size-4" %}{% if refund.amount %}Corriger{% else %}Préciser le montant{% endif %}
+            </a>
+            <form method="post" action="{% url 'expenses:refund_delete' refund.pk %}" x-data
+                  @submit="if (!confirm('Mettre ce remboursement à la corbeille ? Tu pourras le restaurer.')) $event.preventDefault()">
+              {% csrf_token %}
+              <button type="submit" aria-label="Mettre le remboursement de {{ row.line.label }} à la corbeille" title="Mettre à la corbeille"
+                      class="grid size-10 place-items-center rounded-control text-danger hover:bg-page">
+                {% include "components/icone.html" with name="trash" class="size-4" %}
+              </button>
+            </form>
+            {% endif %}
+          </div>
+          {% endfor %}
+          {% if row.left and not read_only %}
+          <a href="{% url 'expenses:refund_create' row.line.pk %}" class="inline-flex min-h-10 items-center gap-1 self-start rounded-control px-2 text-sm text-accent-ink hover:bg-page"
+             aria-label="Enregistrer un retour : {{ row.line.label }}">
+            {% include "components/icone.html" with name="arrow-back-up" class="size-4" %}Enregistrer un retour
+          </a>
+          {% endif %}
+        </div>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+    {% if shipping and rows|length > 1 %}
+    <p class="mt-2 text-xs text-muted">Chaque montant comprend sa part des frais de port, répartis selon le prix des lignes.</p>
+    {% endif %}
+  </section>
+
+  <section aria-labelledby="titre-factures" class="rounded-card border border-border bg-surface p-4">
+    <h2 id="titre-factures" class="flex items-center gap-2 text-base font-semibold">
+      {% include "components/icone.html" with name="receipt" class="size-4" %}Factures
+    </h2>
+    <ul class="mt-2">
+      {% for invoice in invoices %}
+      <li class="flex items-center gap-2 border-t border-border py-1 first:border-t-0">
+        <a href="{{ invoice.file.url }}" target="_blank" rel="noopener" class="inline-flex min-h-10 min-w-0 flex-1 items-center gap-2 text-accent-ink hover:underline">
+          {% include "components/icone.html" with name="paperclip" class="size-4 shrink-0" %}<span class="truncate">{{ invoice.file_name }}</span>
+        </a>
+        {% if not read_only and not locked_vehicles %}
+        <form method="post" action="{% url 'expenses:invoice_delete' expense.pk invoice.pk %}" x-data
+              @submit="if (!confirm('Mettre cette facture à la corbeille ? Tu pourras la restaurer.')) $event.preventDefault()">
+          {% csrf_token %}
+          <button type="submit" aria-label="Mettre {{ invoice.file_name }} à la corbeille" title="Mettre à la corbeille"
+                  class="grid size-10 place-items-center rounded-control text-danger hover:bg-page">
+            {% include "components/icone.html" with name="trash" class="size-4" %}
+          </button>
+        </form>
+        {% endif %}
+      </li>
+      {% empty %}
+      <li class="py-2 text-muted">Aucune facture jointe.{% if not locked_vehicles %} Ajoute-la avec « Modifier la dépense ».{% endif %}</li>
+      {% endfor %}
+    </ul>
+  </section>
+
+  {% if expense.notes %}
+  <section aria-labelledby="titre-notes" class="rounded-card border border-border bg-surface p-4">
+    <h2 id="titre-notes" class="text-base font-semibold">Notes</h2>
+    <p class="mt-2 break-words">{{ expense.notes|linebreaksbr }}</p>
+  </section>
+  {% endif %}
+
+  {# D78 : qui a saisi ou modifié cette dépense, et quoi. #}
+  <a href="{% url 'core:journal' %}?depense={{ expense.pk }}" class="inline-flex min-h-10 items-center gap-1 self-start text-sm text-accent-ink hover:underline">
+    {% include "components/icone.html" with name="history" class="size-4" %}Voir son historique
+  </a>
+</div>
+{% endblock %}

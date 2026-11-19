@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% load ui_tags %}
+
+{% block title %}Transférer sur un autre véhicule · {{ garage_name }}{% endblock %}
+
+{% block content %}
+<div class="flex max-w-xl flex-col gap-3" x-data="{ envoi: false }">
+  <a href="{{ line.expense.get_absolute_url }}" class="inline-flex min-h-10 items-center gap-1 self-start text-sm text-accent-ink hover:underline">
+    {% include "components/icone.html" with name="arrow-left" class="size-4" %}Retour à la dépense
+  </a>
+
+  <div>
+    <h1 class="text-xl font-semibold">Transférer sur un autre véhicule</h1>
+    <p class="mt-1 break-words text-muted">{{ line.label }}{% if line.reference %} · {{ line.reference }}{% endif %}, dépense du {{ line.expense.date|date:"d/m/Y" }}, aujourd'hui sur le {{ line.vehicle.display_name }}.</p>
+  </div>
+
+  <section aria-label="La ligne" class="grid gap-3 sm:grid-cols-2">
+    {% include "components/tuile_indicateur.html" with label="Coût de la ligne" value=cost.net|euros note="frais de port compris, retours déduits" %}
+    <div class="flex flex-col gap-2 rounded-card border border-border bg-surface p-4">
+      <span class="text-[11px] font-semibold text-muted">Payée par</span>
+      <div class="flex flex-wrap gap-2">
+        {% for partner in payers %}
+        <span class="inline-flex min-h-6 items-center rounded-control px-2 text-xs font-semibold {{ partner.color|partner_badge }}">{{ partner.name }}</span>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+
+  <p class="text-sm text-muted">Toute la ligne passe sur l'autre véhicule avec son coût. Qui l'a payée ne change pas, et le solde entre vous ne bouge pas.</p>
+
+  {% if not has_targets %}
+  <p class="rounded-card border border-border bg-surface p-4">Aucun autre véhicule ne peut recevoir cette ligne. Il faut un véhicule au garage, ou une fiche vendue rouverte.</p>
+  <a href="{{ line.expense.get_absolute_url }}" class="btn-secondary self-start">Retour à la dépense</a>
+  {% else %}
+  <form method="post" novalidate class="flex flex-col gap-3" @submit="envoi = true">
+    {% csrf_token %}
+    {{ form.from_vehicle }}
+    {% for error in form.non_field_errors %}<p class="text-sm text-danger" role="alert">{{ error }}</p>{% endfor %}
+    <section aria-label="Le transfert" class="flex flex-col gap-4 rounded-card border border-border bg-surface p-4">
+      {% include "components/champ_formulaire.html" with field=form.to_vehicle %}
+      {% include "components/champ_formulaire.html" with field=form.date %}
+      {% include "components/champ_formulaire.html" with field=form.notes %}
+    </section>
+    <div class="flex flex-wrap gap-2">
+      <button type="submit" class="btn-primary" :disabled="envoi" :aria-disabled="envoi.toString()">Transférer la ligne</button>
+      <a href="{{ line.expense.get_absolute_url }}" class="btn-secondary">Annuler</a>
+    </div>
+  </form>
+  {% endif %}
+</div>
+{% endblock %}

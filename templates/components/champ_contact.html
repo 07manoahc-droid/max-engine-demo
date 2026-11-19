@@ -1,0 +1,11 @@
+{% comment %}
+Vendeur ou acheteur : `field` (liste de choix, voir `ContactChoiceMixin`) et `contact_form` (la
+nouvelle fiche, affichée si « Nouveau… » est choisi). La variable Alpine `contact` (x-data du
+parent) suit le choix.
+{% endcomment %}
+{% include "components/champ_formulaire.html" with field=field %}
+<div x-show="contact === 'nouveau'" x-cloak class="flex flex-col gap-4 border-l-2 border-border pl-4">
+  {% for contact_field in contact_form %}
+  {% include "components/champ_formulaire.html" with field=contact_field %}
+  {% endfor %}
+</div>

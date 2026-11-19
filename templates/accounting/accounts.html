@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% load ui_tags %}
+
+{% block title %}Comptes · {{ garage_name }}{% endblock %}
+
+{% block content %}
+<div class="flex max-w-4xl flex-col gap-3">
+  <header class="flex flex-col gap-2">
+    <h1 class="text-xl font-semibold">Comptes</h1>
+    {% include "components/onglets_comptes.html" %}
+  </header>
+
+  {% if accounts %}
+  <section aria-labelledby="titre-solde" class="flex flex-col gap-3 rounded-card border border-border bg-surface p-4">
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <div>
+        <h2 id="titre-solde" class="text-xs font-semibold text-muted">Solde entre vous</h2>
+        <p class="mt-1 text-[22px] font-semibold leading-tight">{{ balance_sentence }}</p>
+      </div>
+      {% if not accounts.balance.is_settled and not read_only %}
+      <a href="{% url 'accounting:settlement_create' %}" class="btn-primary">
+        {% include "components/icone.html" with name="switch-horizontal" class="size-4" %}Enregistrer le règlement
+      </a>
+      {% endif %}
+    </div>
+
+    {# Le détail du calcul : de quoi est faite la position de chacun. Aucun calcul ici. #}
+    <details class="group rounded-control bg-page p-3">
+      <summary class="flex min-h-10 cursor-pointer items-center gap-2 text-sm font-semibold">
+        {% include "components/icone.html" with name="chevron-down" class="size-4 transition-transform group-open:rotate-180" %}Comment ce solde est calculé
+      </summary>
+      <p class="mt-2 text-sm text-muted">Tout l'argent du garage est à vous deux, moitié chacun. Pour chacun, on compte ce qu'il a sorti de sa poche et ce qu'il a reçu. Celui qui a la plus grande position a avancé plus que l'autre : l'autre lui doit la moitié de l'écart. Un règlement compte en entier, car c'est de l'argent qui passe de l'un à l'autre.</p>
+      <div class="mt-2 overflow-x-auto">
+        <table class="w-full text-sm">
+          <caption class="sr-only">Ce que chacun a sorti et reçu pour le garage</caption>
+          <thead>
+            <tr class="text-left">
+              <th scope="col" class="py-2 font-normal text-muted"><span class="sr-only">Rubrique</span></th>
+              {% for partner in partners %}<th scope="col" class="py-2 text-right font-semibold">{{ partner.name }}</th>{% endfor %}
+            </tr>
+          </thead>
+          <tbody>
+            <tr><th scope="rowgroup" colspan="{{ partners|length|add:1 }}" class="pt-3 pb-1 text-left text-xs font-semibold text-muted">Sorti de sa poche</th></tr>
+            {% for label, amounts in sorti_rows %}
+            <tr class="border-t border-border">
+              <th scope="row" class="py-2 text-left font-normal">{{ label }}</th>
+              {% for amount in amounts %}<td class="py-2 text-right tabular-nums">{{ amount|euros }}</td>{% endfor %}
+            </tr>
+            {% endfor %}
+          </tbody>
+          <tbody>
+            <tr><th scope="rowgroup" colspan="{{ partners|length|add:1 }}" class="pt-3 pb-1 text-left text-xs font-semibold text-muted">Reçu</th></tr>
+            {% for label, amounts in recu_rows %}
+            <tr class="border-t border-border">
+              <th scope="row" class="py-2 text-left font-normal">{{ label }}</th>
+              {% for amount in amounts %}<td class="py-2 text-right tabular-nums">{{ amount|euros }}</td>{% endfor %}
+            </tr>
+            {% endfor %}
+          </tbody>
+          <tbody>
+            {% for label, amounts in totals %}
+            <tr class="border-t border-border{% if forloop.first %} border-t-2{% endif %}">
+              <th scope="row" class="py-2 text-left font-semibold">{{ label }}</th>
+              {% for amount in amounts %}<td class="py-2 text-right font-semibold tabular-nums">{{ amount|euros }}</td>{% endfor %}
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </details>
+  </section>
+  {% else %}
+  <section class="rounded-card border border-danger bg-surface p-4">
+    <p class="text-sm text-danger" role="alert">Le solde ne peut pas être calculé pour l'instant. Préviens Mathis.</p>
+  </section>
+  {% endif %}
+
+  <section aria-labelledby="titre-reglements" class="rounded-card border border-border bg-surface p-4">
+    <h2 id="titre-reglements" class="flex items-center gap-2 text-base font-semibold">
+      {% include "components/icone.html" with name="history" class="size-4" %}Règlements
+    </h2>
+    {% if settlements %}
+    <ul class="mt-2">
+      {% for row in settlements %}
+      {% with settlement=row.settlement %}
+      <li class="flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-border py-3 text-sm first:border-t-0">
+        <span class="w-24 shrink-0 tabular-nums text-muted">{{ settlement.date|date:"d/m/Y" }}</span>
+        <span class="flex min-w-0 flex-1 flex-col gap-1">
+          <span class="flex flex-wrap items-center gap-1">
+            <span class="inline-flex min-h-6 items-center rounded-control px-2 text-xs font-semibold {{ settlement.from_partner.color|partner_badge }}">{{ settlement.from_partner.name }}</span>
+            <span>a versé à</span>
+            <span class="inline-flex min-h-6 items-center rounded-control px-2 text-xs font-semibold {{ settlement.to_partner.color|partner_badge }}">{{ settlement.to_partner.name }}</span>
+            {% if settlement.cancels %}
+            <span class="inline-flex min-h-6 items-center gap-1 rounded-control px-2 text-xs font-semibold {% neutral_badge %}">{% include "components/icone.html" with name="arrow-back-up" class="size-3" %}Annulation du règlement du {{ settlement.cancels.date|date:"d/m/Y" }}</span>
+            {% elif row.cancelled_by %}
+            <span class="inline-flex min-h-6 items-center rounded-control px-2 text-xs font-semibold {% neutral_badge %}">Annulé le {{ row.cancelled_by.date|date:"d/m/Y" }}</span>
+            {% endif %}
+          </span>
+          {% if settlement.notes %}<span class="break-words text-muted">{% if settlement.cancels %}Motif : {% endif %}{{ settlement.notes }}</span>{% endif %}
+        </span>
+        <span class="font-semibold tabular-nums {% if row.cancelled_by %}text-muted line-through{% endif %}">{{ settlement.amount|euros }}</span>
+        {% if row.can_cancel and not read_only %}
+        <a href="{% url 'accounting:settlement_cancel' settlement.pk %}" class="btn-secondary" aria-label="Annuler le règlement du {{ settlement.date|date:'d/m/Y' }} de {{ settlement.amount|euros }}">Annuler</a>
+        {% endif %}
+      </li>
+      {% endwith %}
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="mt-2 text-sm text-muted">Aucun règlement pour l'instant. Quand l'un de vous verse de l'argent à l'autre pour équilibrer les comptes, enregistre-le ici.</p>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

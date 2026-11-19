@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block title %}Rouvrir la fiche · {{ garage_name }}{% endblock %}
+
+{% block content %}
+<div class="flex max-w-xl flex-col gap-3" x-data="{ envoi: false }">
+  <a href="{{ vehicle.get_absolute_url }}" class="inline-flex min-h-10 items-center gap-1 self-start text-sm text-accent-ink hover:underline">
+    {% include "components/icone.html" with name="arrow-left" class="size-4" %}Retour
+  </a>
+
+  <div>
+    <h1 class="text-xl font-semibold">Rouvrir la fiche</h1>
+    <p class="mt-1 break-words text-muted">{{ vehicle.display_name }}</p>
+  </div>
+
+  <form method="post" novalidate class="flex flex-col gap-3" @submit="envoi = true">
+    {% csrf_token %}
+    {% for error in form.non_field_errors %}
+    <p class="text-sm text-danger" role="alert">{{ error }}</p>
+    {% endfor %}
+
+    <section class="flex flex-col gap-3 rounded-card border border-border bg-surface p-4">
+      <p class="text-sm">Tu pourras corriger les dépenses. N'oublie pas de verrouiller la fiche ensuite. Le véhicule reste vendu.</p>
+      {% include "components/champ_formulaire.html" with field=form.reason %}
+    </section>
+
+    <div class="flex flex-wrap gap-2">
+      <button type="submit" class="btn-primary" :disabled="envoi" :aria-disabled="envoi.toString()">Rouvrir la fiche</button>
+      <a href="{{ vehicle.get_absolute_url }}" class="btn-secondary">Retour</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

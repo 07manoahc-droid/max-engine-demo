@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }} · {{ garage_name }}{% endblock %}
+
+{% block content %}
+{% if vehicle %}{% url 'vehicles:detail' vehicle.number as retour %}{% else %}{% url 'core:home' as retour %}{% endif %}
+<div class="flex max-w-xl flex-col gap-3">
+  <a href="{{ retour }}" class="inline-flex min-h-10 items-center gap-1 self-start text-sm text-accent-ink hover:underline">
+    {% include "components/icone.html" with name="arrow-left" class="size-4" %}Retour
+  </a>
+
+  <div>
+    <h1 class="text-xl font-semibold">{{ title }}</h1>
+    {% if not vehicle %}
+    <p class="mt-1 text-muted">Le strict nécessaire : tu complèteras la fiche plus tard.</p>
+    {% endif %}
+  </div>
+
+  <form method="post" novalidate class="flex flex-col gap-3">
+    {% csrf_token %}
+    {% for error in form.non_field_errors %}
+    <p class="text-sm text-danger" role="alert">{{ error }}</p>
+    {% endfor %}
+
+    {% for titre, champs in form.grouped_fields %}
+    <section {% if titre %}aria-labelledby="rubrique-{{ forloop.counter }}"{% endif %} class="flex flex-col gap-4 rounded-card border border-border bg-surface p-4">
+      {% if titre %}<h2 id="rubrique-{{ forloop.counter }}" class="text-base font-semibold">{{ titre }}</h2>{% endif %}
+      {% for field in champs %}
+      {% include "components/champ_formulaire.html" with field=field %}
+      {% endfor %}
+    </section>
+    {% endfor %}
+
+    <div class="flex flex-wrap gap-2">
+      <button type="submit" class="btn-primary">{{ submit_label }}</button>
+      <a href="{{ retour }}" class="btn-secondary">Annuler</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

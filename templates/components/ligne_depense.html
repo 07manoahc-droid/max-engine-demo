@@ -1,0 +1,72 @@
+{% load ui_tags %}{% comment %}
+Une ligne de dépense dans une liste (charte) : désignation et fournisseur à gauche, badges payeur
+et statut, montant à droite, puis l'étape suivante de la pièce (« Marquer reçue », « Marquer
+montée »). `row` : dictionnaire de `expenses.services.line_rows`. Renvoyée seule par HTMX après
+un changement de statut.
+{% endcomment %}
+<li class="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border py-2 first:border-t-0">
+  <a href="{{ row.line.expense.get_absolute_url }}" class="flex min-h-10 min-w-0 flex-1 flex-col justify-center rounded-control hover:underline">
+    <span class="block break-words font-semibold">{{ row.line.label }}{% if row.line.reference %} <span class="font-normal text-muted">· {{ row.line.reference }}</span>{% endif %}</span>
+    <span class="flex flex-wrap items-center gap-x-1 text-xs text-muted">
+      {{ row.line.expense.date|date:"d/m/Y" }}{% if row.line.expense.supplier %} · {{ row.line.expense.supplier.name }}{% endif %} · {{ row.line.category }}
+      {% if row.line.has_invoice %}<span class="inline-flex items-center gap-0.5">· {% include "components/icone.html" with name="paperclip" class="size-3" %}facture</span>{% endif %}
+    </span>
+  </a>
+  {% for partner in row.payers %}
+  <span class="inline-flex min-h-6 items-center rounded-control px-2 text-xs font-semibold {{ partner.color|partner_badge }}">{{ partner.name }}</span>
+  {% endfor %}
+  {% if row.status_choices and not read_only %}
+  {# Le badge ouvre une petite liste pour corriger le statut (revenir de « Monté » à « Reçu ») : #}
+  {# bouton qui affiche ou masque des choix (motif « disclosure »), pas un menu ARIA. #}
+  <div class="relative" x-data="{ ouvert: false }" @click.outside="ouvert = false"
+       @keydown.escape="ouvert = false; $refs.badge.focus()"
+       @focusout="if (!$el.contains($event.relatedTarget)) ouvert = false">
+    <button type="button" x-ref="badge" @click="ouvert = !ouvert" :aria-expanded="ouvert.toString()" aria-controls="statuts-{{ row.line.pk }}"
+            aria-label="Statut de {{ row.line.label }} : {{ row.line.status|part_status_label }}. Changer le statut"
+            class="inline-flex min-h-10 items-center rounded-control">
+      <span class="inline-flex min-h-6 items-center gap-0.5 rounded-control px-2 text-xs font-semibold {{ row.line.status|part_status_badge }}">
+        {{ row.line.status|part_status_label }}{% include "components/icone.html" with name="chevron-down" class="size-3" %}
+      </span>
+    </button>
+    <form id="statuts-{{ row.line.pk }}" method="post" action="{% url 'expenses:line_status' row.line.pk %}"
+          hx-post="{% url 'expenses:line_status' row.line.pk %}" hx-target="closest li" hx-swap="outerHTML"
+          x-show="ouvert" x-cloak
+          class="absolute right-0 z-10 flex min-w-32 flex-col rounded-card border border-border bg-surface p-1">
+      {% csrf_token %}
+      {% for value, label in row.status_choices %}
+      {% if value == row.line.status %}
+      {# Le statut en place : coché, il referme seulement la liste (rien à enregistrer). #}
+      <button type="button" aria-current="true" @click="ouvert = false; $refs.badge.focus()"
+              class="flex min-h-10 items-center gap-2 rounded-control px-2 text-left text-sm font-semibold hover:bg-page">
+        {% include "components/icone.html" with name="check" class="size-4" %}{{ label }}
+      </button>
+      {% else %}
+      <button type="submit" name="status" value="{{ value }}"
+              class="flex min-h-10 items-center gap-2 rounded-control px-2 text-left text-sm hover:bg-page">
+        <span class="size-4 shrink-0"></span>{{ label }}
+      </button>
+      {% endif %}
+      {% endfor %}
+    </form>
+  </div>
+  {% elif row.line.status %}
+  <span class="inline-flex min-h-6 items-center rounded-control px-2 text-xs font-semibold {{ row.line.status|part_status_badge }}">{{ row.line.status|part_status_label }}</span>
+  {% endif %}
+  {# Dépense partagée avec un véhicule vendu : sur cette fiche, rien d'autre ne l'explique. #}
+  {% if row.locked and not vehicle.expenses_locked %}
+  <span class="inline-flex items-center gap-1 text-xs text-muted">{% include "components/icone.html" with name="lock" class="size-3" %}Verrouillée</span>
+  {% endif %}
+  <span class="ml-auto text-right font-semibold tabular-nums">{{ row.cost|euros }}</span>
+  {% if row.next_status and not read_only %}
+  <form method="post" action="{% url 'expenses:line_status' row.line.pk %}"
+        hx-post="{% url 'expenses:line_status' row.line.pk %}" hx-target="closest li" hx-swap="outerHTML"
+        class="basis-full text-right sm:basis-auto">
+    {% csrf_token %}
+    <input type="hidden" name="status" value="{{ row.next_status }}">
+    <button type="submit" class="inline-flex min-h-10 items-center gap-1 rounded-control px-2 text-sm font-semibold text-accent-ink hover:bg-page"
+            aria-label="{{ row.next_label }} : {{ row.line.label }}">
+      {% include "components/icone.html" with name="circle-check" class="size-4" %}{{ row.next_label }}
+    </button>
+  </form>
+  {% endif %}
+</li>

@@ -1,0 +1,21 @@
+{% comment %}
+« Qu'est devenu l'argent ? » : rendu ou conservé, à l'annulation d'un acompte ou d'une vente.
+`form` est un `DepositCancelForm`, `deposit` l'acompte concerné (`DepositDetail`) ; le choix vaut
+pour tous ses versements (D89) ; `legend` remplace la question.
+{% endcomment %}
+<fieldset class="flex flex-col gap-2" {% if form.outcome.errors %}aria-describedby="erreur-devenir"{% endif %}>
+  <legend class="mb-1 text-sm font-semibold">{{ legend|default:form.outcome.label }}</legend>
+  {% for value, label in form.fields.outcome.choices %}
+  <label class="flex min-h-12 cursor-pointer items-start gap-3 rounded-card border border-border p-3 hover:bg-page has-[:checked]:border-accent has-[:checked]:bg-accent-bg">
+    <input type="radio" name="{{ form.outcome.html_name }}" value="{{ value }}" class="mt-1 size-4 accent-accent"
+           {% if form.outcome.value == value %}checked{% endif %}>
+    <span class="min-w-0">
+      <span class="block font-semibold">{{ label }}</span>
+      <span class="block text-xs text-muted">
+        {% if value == "REFUNDED" %}L'acheteur a récupéré son argent : l'acompte ne compte plus dans les comptes.{% else %}L'acheteur ne récupère pas son argent : il reste encaissé par {{ deposit.receivers_label }}, et il comptera dans la marge du véhicule quand il sera vendu.{% endif %}
+      </span>
+    </span>
+  </label>
+  {% endfor %}
+  {% if form.outcome.errors %}<div id="erreur-devenir">{% for error in form.outcome.errors %}<p class="text-xs text-danger">{{ error }}</p>{% endfor %}</div>{% endif %}
+</fieldset>

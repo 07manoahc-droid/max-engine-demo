@@ -1,0 +1,20 @@
+{% if messages %}
+<div class="fixed bottom-4 right-4 z-50 flex flex-col gap-2" role="status" aria-live="polite">
+  {% for message in messages %}
+  {% comment %}
+    Une confirmation s'efface seule. Un refus ou un avertissement (doublon possible) reste
+    jusqu'à ce qu'on le ferme : il dit quoi faire ou quoi vérifier.
+  {% endcomment %}
+  <div x-data="{ open: true }"{% if message.level_tag != 'error' and message.level_tag != 'warning' %} x-init="setTimeout(() => open = false, 4000)"{% endif %} x-show="open" x-transition
+       class="flex max-w-sm items-start gap-2 rounded-card border bg-surface px-4 py-3 text-sm {% if message.level_tag == 'error' %}border-danger text-danger{% else %}border-border{% endif %}">
+    {% if message.level_tag == 'error' or message.level_tag == 'warning' %}{% include "components/icone.html" with name="alert-triangle" class="size-5" %}{% else %}{% include "components/icone.html" with name="circle-check" class="size-5" %}{% endif %}
+    <span>{{ message }}</span>
+    {% if message.level_tag == 'error' or message.level_tag == 'warning' %}
+    <button type="button" class="-my-2 -mr-2 inline-flex size-10 shrink-0 items-center justify-center" aria-label="Fermer ce message" @click="open = false">
+      {% include "components/icone.html" with name="x" class="size-4" %}
+    </button>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% endif %}

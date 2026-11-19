@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% load ui_tags %}
+
+{% block title %}{% if refund %}Corriger le remboursement{% else %}Enregistrer un retour{% endif %} · {{ garage_name }}{% endblock %}
+
+{% block content %}
+<div class="flex max-w-xl flex-col gap-3" x-data="{ envoi: false }">
+  <a href="{{ line.expense.get_absolute_url }}" class="inline-flex min-h-10 items-center gap-1 self-start text-sm text-accent-ink hover:underline">
+    {% include "components/icone.html" with name="arrow-left" class="size-4" %}Retour à la dépense
+  </a>
+
+  <div>
+    <h1 class="text-xl font-semibold">{% if refund %}Corriger le remboursement{% else %}Enregistrer un retour{% endif %}</h1>
+    <p class="mt-1 break-words text-muted">{{ line.label }}{% if line.reference %} · {{ line.reference }}{% endif %}, dépense du {{ line.expense.date|date:"d/m/Y" }}.</p>
+  </div>
+
+  <section aria-label="La ligne" class="grid gap-3 sm:grid-cols-3">
+    {% include "components/tuile_indicateur.html" with label="Coût de la ligne" value=room.allocated|euros %}
+    {% if refund %}
+    {% include "components/tuile_indicateur.html" with label="Autres remboursements" value=room.others|euros %}
+    {% else %}
+    {% include "components/tuile_indicateur.html" with label="Déjà remboursé" value=room.others|euros %}
+    {% endif %}
+    {% include "components/tuile_indicateur.html" with label="Reste à rembourser" value=room.left|euros %}
+  </section>
+
+  <form method="post" novalidate class="flex flex-col gap-3" @submit="envoi = true">
+    {% csrf_token %}
+    {% for error in form.non_field_errors %}<p class="text-sm text-danger" role="alert">{{ error }}</p>{% endfor %}
+    <section aria-label="Le remboursement" class="flex flex-col gap-4 rounded-card border border-border bg-surface p-4">
+      <div class="grid gap-4 sm:grid-cols-2">
+        {% include "components/champ_formulaire.html" with field=form.date %}
+        {% include "components/champ_formulaire.html" with field=form.amount %}
+      </div>
+      {% if is_part %}<p class="text-xs text-muted">La pièce passe en « Retourné » quand elle est entièrement remboursée.</p>{% endif %}
+
+      {% include "components/choix_associe.html" with field=form.refunded_to options=form.partner_options %}
+
+      {% include "components/champ_formulaire.html" with field=form.notes %}
+    </section>
+    <div class="flex flex-wrap gap-2">
+      <button type="submit" class="btn-primary" :disabled="envoi" :aria-disabled="envoi.toString()">Enregistrer le remboursement</button>
+      <a href="{{ line.expense.get_absolute_url }}" class="btn-secondary">Annuler</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

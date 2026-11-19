@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% load ui_tags %}
+
+{% block title %}Ajouter un versement · {{ garage_name }}{% endblock %}
+
+{% block content %}
+<div class="flex max-w-xl flex-col gap-3"
+     x-data="{ payeur: '{{ form.payer.value|default:''|escapejs }}', envoi: false }">
+  <a href="{{ vehicle.get_absolute_url }}" class="inline-flex min-h-10 items-center gap-1 self-start text-sm text-accent-ink hover:underline">
+    {% include "components/icone.html" with name="arrow-left" class="size-4" %}Retour
+  </a>
+
+  <div>
+    <h1 class="text-xl font-semibold">Ajouter un versement</h1>
+    <p class="mt-1 break-words text-muted">L'acompte de {{ vehicle.display_name }} fait aujourd'hui {{ deposit.total|euros }}. Ce versement s'y ajoute.</p>
+  </div>
+
+  {# `envoi` désactive le bouton après le premier clic : un double-clic n'ajoute pas deux versements. #}
+  <form method="post" novalidate class="flex flex-col gap-3" @submit="envoi = true">
+    {% csrf_token %}
+    {% for error in form.non_field_errors %}
+    <p class="text-sm text-danger" role="alert">{{ error }}</p>
+    {% endfor %}
+
+    <section aria-label="Le versement" class="flex flex-col gap-4 rounded-card border border-border bg-surface p-4">
+      <div class="grid gap-4 sm:grid-cols-2">
+        {% include "components/champ_formulaire.html" with field=form.amount %}
+        {% include "components/champ_formulaire.html" with field=form.date %}
+      </div>
+    </section>
+
+    <section aria-labelledby="rubrique-payeur" class="flex flex-col gap-4 rounded-card border border-border bg-surface p-4">
+      {% include "components/choix_payeurs.html" %}
+    </section>
+
+    <div class="flex flex-wrap gap-2">
+      <button type="submit" class="btn-primary" :disabled="envoi" :aria-disabled="envoi.toString()">Ajouter le versement</button>
+      <a href="{{ vehicle.get_absolute_url }}" class="btn-secondary">Annuler</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% comment %}
+  Journal des modifications (D78) : qui a changé quoi et quand, du plus récent au plus ancien.
+  Filtre par véhicule, ou par dépense (lien « Voir son historique » de sa fiche).
+{% endcomment %}
+
+{% block title %}Journal · {{ garage_name }}{% endblock %}
+
+{% block content %}
+<div class="flex max-w-4xl flex-col gap-3">
+  <header>
+    <h1 class="text-xl font-semibold">Journal des modifications</h1>
+    <p class="mt-1 text-muted">Ce qui a été ajouté, modifié ou mis à la corbeille, et par qui. Les contacts, photos et notes de travaux n'y sont pas.</p>
+  </header>
+
+  <section aria-label="Filtre" class="rounded-card border border-border bg-surface p-4">
+    {% if expense %}
+    <p class="flex flex-wrap items-center gap-x-3 gap-y-2">
+      <span>Historique de la {% if expense.deleted_at %}dépense du {{ expense.date|date:"d/m/Y" }} (à la corbeille){% else %}<a href="{{ expense.get_absolute_url }}" class="text-accent-ink hover:underline">dépense du {{ expense.date|date:"d/m/Y" }}</a>{% endif %}</span>
+      <a href="{% url 'core:journal' %}" class="inline-flex min-h-10 items-center text-sm text-accent-ink hover:underline">Voir tout le journal</a>
+    </p>
+    {% else %}
+    <form method="get" action="{% url 'core:journal' %}" class="flex flex-wrap items-end gap-3" x-data>
+      <div class="flex min-w-0 flex-1 flex-col gap-1">
+        <label for="filtre-vehicule" class="text-sm font-semibold">Véhicule</label>
+        <select id="filtre-vehicule" name="vehicule" class="field-input" @change="$el.form.requestSubmit()">
+          <option value="">Tous les véhicules et le garage</option>
+          {% for choice in vehicles %}
+          <option value="{{ choice.number }}" {% if vehicle and choice.pk == vehicle.pk %}selected{% endif %}>{{ choice.display_name }}{% if choice.deleted_at %} (à la corbeille){% endif %}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <button type="submit" class="btn-secondary">Afficher</button>
+    </form>
+    {% if vehicle and not vehicle.deleted_at %}
+    <a href="{{ vehicle.get_absolute_url }}" class="mt-2 inline-flex min-h-10 items-center text-sm text-accent-ink hover:underline">Ouvrir la fiche {{ vehicle.display_name }}</a>
+    {% endif %}
+    {% endif %}
+  </section>
+
+  <section aria-label="Modifications" class="rounded-card border border-border bg-surface p-4">
+    <ol>
+      {% for entry in journal.entries %}
+      <li class="flex gap-3 border-t border-border py-3 first:border-t-0">
+        {% if entry.author %}
+        {% include "components/avatar_associe.html" with partner=entry.author %}
+        {% else %}
+        <span class="grid size-8 shrink-0 place-items-center rounded-full bg-page text-muted" aria-hidden="true">
+          {% include "components/icone.html" with name="history" class="size-4" %}
+        </span>
+        {% endif %}
+        <div class="min-w-0 flex-1">
+          <p class="flex flex-wrap items-baseline gap-x-2">
+            <span class="font-semibold">{{ entry.author_name }}</span>
+            <span class="text-xs text-muted">{{ entry.when }}</span>
+          </p>
+          <ul class="mt-1 flex flex-col gap-1">
+            {% for line in entry.lines %}
+            <li class="break-words">
+              {{ line.text }}
+              {% if line.changes %}
+              <ul class="text-sm text-muted">
+                {% for change in line.changes %}<li class="break-words">{{ change }}</li>{% endfor %}
+              </ul>
+              {% endif %}
+            </li>
+            {% endfor %}
+          </ul>
+          {% if entry.link_url %}
+          <a href="{{ entry.link_url }}" class="inline-flex min-h-10 items-center text-sm text-accent-ink hover:underline">{{ entry.link_label }}</a>
+          {% endif %}
+        </div>
+      </li>
+      {% empty %}
+      <li class="py-2 text-muted">{% if journal.page > 1 %}Rien de plus ancien.{% elif vehicle or expense %}Rien n'a encore été enregistré ici.{% else %}Rien n'a encore été enregistré. Le journal se remplit dès la première saisie.{% endif %}</li>
+      {% endfor %}
+    </ol>
+  </section>
+
+  {% if previous_url or next_url %}
+  <nav aria-label="Pages du journal" class="flex flex-wrap justify-between gap-3">
+    {% if previous_url %}<a href="{{ previous_url }}" class="btn-secondary">Plus récentes</a>{% else %}<span></span>{% endif %}
+    {% if next_url %}<a href="{{ next_url }}" class="btn-secondary">Plus anciennes</a>{% endif %}
+  </nav>
+  {% endif %}
+</div>
+{% endblock %}

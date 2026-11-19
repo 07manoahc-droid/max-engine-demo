@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% load ui_tags %}
+
+{% block title %}Corriger le versement · {{ garage_name }}{% endblock %}
+
+{% block content %}
+<div class="flex max-w-xl flex-col gap-3" x-data="{ envoi: false }">
+  <a href="{{ vehicle.get_absolute_url }}" class="inline-flex min-h-10 items-center gap-1 self-start text-sm text-accent-ink hover:underline">
+    {% include "components/icone.html" with name="arrow-left" class="size-4" %}Retour
+  </a>
+
+  <div>
+    <h1 class="text-xl font-semibold">Corriger le versement</h1>
+    <p class="mt-1 break-words text-muted">Versement du {{ receipt.date|date:"d/m/Y" }} sur l'acompte de {{ vehicle.display_name }} ({{ deposit.total|euros }} en tout).</p>
+  </div>
+
+  <form method="post" novalidate class="flex flex-col gap-3" @submit="envoi = true">
+    {% csrf_token %}
+    {% for error in form.non_field_errors %}
+    <p class="text-sm text-danger" role="alert">{{ error }}</p>
+    {% endfor %}
+
+    <section aria-label="Le versement" class="flex flex-col gap-4 rounded-card border border-border bg-surface p-4">
+      <div class="grid gap-4 sm:grid-cols-2">
+        {% include "components/champ_formulaire.html" with field=form.amount %}
+        {% include "components/champ_formulaire.html" with field=form.date %}
+      </div>
+      {% include "components/choix_associe.html" with field=form.received_by options=form.partner_options %}
+    </section>
+
+    <div class="flex flex-wrap gap-2">
+      <button type="submit" class="btn-primary" :disabled="envoi" :aria-disabled="envoi.toString()">Enregistrer</button>
+      <a href="{{ vehicle.get_absolute_url }}" class="btn-secondary">Annuler</a>
+    </div>
+  </form>
+
+  {% if can_remove %}
+  <form method="post" action="{% url 'sales:deposit_receipt_remove' receipt.pk %}" class="flex flex-col gap-2 rounded-card border border-border bg-surface p-4"
+        x-data="{ envoi: false }"
+        @submit="if (!confirm('Retirer ce versement de {{ receipt.amount|euros|escapejs }} ? Il ne comptera plus dans les comptes.')) { $event.preventDefault() } else { envoi = true }">
+    {% csrf_token %}
+    <p class="text-sm text-muted">Versement saisi par erreur ? Retire-le : il ne comptera plus nulle part.</p>
+    <button type="submit" class="btn-danger self-start" :disabled="envoi" :aria-disabled="envoi.toString()">
+      {% include "components/icone.html" with name="trash" class="size-4" %}Retirer ce versement
+    </button>
+  </form>
+  {% else %}
+  <p class="text-sm text-muted">C'est le seul versement de cet acompte. Pour tout enlever, annule l'acompte depuis la fiche.</p>
+  {% endif %}
+</div>
+{% endblock %}

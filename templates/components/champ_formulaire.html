@@ -1,0 +1,9 @@
+{# Un champ : libellé au-dessus, aide en gris dessous, erreur en rouge dessous (charte). `hide_optional` : pas de « (facultatif) ». #}
+<div class="flex flex-col gap-1">
+  <label for="{{ field.id_for_label }}" class="text-sm font-semibold">
+    {{ field.label|capfirst }}{% if not field.field.required and not hide_optional %} <span class="font-normal text-muted">(facultatif)</span>{% endif %}
+  </label>
+  {{ field }}
+  {% if field.help_text %}<p id="{{ field.auto_id }}_helptext" class="text-xs text-muted">{{ field.help_text }}</p>{% endif %}
+  {% for error in field.errors %}<p class="text-xs text-danger">{{ error }}</p>{% endfor %}
+</div>

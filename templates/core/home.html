@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% load ui_tags %}
+
+{% block title %}Accueil · {{ garage_name }}{% endblock %}
+
+{% block content %}
+<div class="flex max-w-5xl flex-col gap-4">
+  <h1 class="text-xl font-semibold">Bonjour {{ current_partner.name }}</h1>
+
+  <section aria-label="Indicateurs" class="grid gap-3 sm:grid-cols-3">
+    {% include "components/tuile_indicateur.html" with label="Coût des véhicules au garage" value=overview.garage_cost|euros note=trash_note %}
+    {% url 'accounting:report' as url_bilan %}
+    {% include "components/tuile_indicateur.html" with label=profit_label value=overview.profit|resultat href=url_bilan link_label="Voir le bilan" %}
+    {% include "components/tuile_indicateur.html" with label="Véhicules au garage" value=garage_count %}
+  </section>
+
+  {# Trois gros boutons : un seul bleu plein, l'action la plus courante. #}
+  <nav aria-label="Que veux-tu faire ?" class="grid gap-3 md:grid-cols-3">
+    {% if not read_only %}
+    <a href="{% url 'vehicles:create' %}"
+       class="flex min-h-28 flex-col justify-center gap-2 rounded-card bg-accent p-4 text-white hover:opacity-90">
+      {% include "components/icone.html" with name="plus" class="size-6" %}
+      <span class="text-base font-semibold">Ajouter un véhicule</span>
+      <span class="text-xs">Un formulaire court, le reste se complète plus tard.</span>
+    </a>
+    {% endif %}
+    <a href="{% url 'vehicles:list' %}"
+       class="flex min-h-28 flex-col justify-center gap-2 rounded-card border border-border bg-surface p-4 hover:bg-page">
+      {% include "components/icone.html" with name="motorbike" class="size-6" %}
+      <span class="text-base font-semibold">Véhicules au garage</span>
+      <span class="text-xs text-muted">{% if garage_count %}{{ garage_count }} en cours{% else %}Aucun pour l'instant{% endif %}</span>
+    </a>
+    <a href="{% url 'vehicles:sold' %}"
+       class="flex min-h-28 flex-col justify-center gap-2 rounded-card border border-border bg-surface p-4 hover:bg-page">
+      {% include "components/icone.html" with name="circle-check" class="size-6" %}
+      <span class="text-base font-semibold">Véhicules vendus</span>
+      <span class="text-xs text-muted">{% if sold_count %}{{ sold_count }} vendu{{ sold_count|pluralize }}{% else %}Aucun pour l'instant{% endif %}</span>
+    </a>
+  </nav>
+
+  {% if not read_only %}
+  <div class="flex flex-wrap items-center gap-3">
+    <a href="{% url 'expenses:create' %}" class="btn-secondary">
+      {% include "components/icone.html" with name="plus" class="size-4" %}Ajouter une dépense
+    </a>
+    <span class="text-xs text-muted">Outillage, consommables, commande pour plusieurs véhicules…</span>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

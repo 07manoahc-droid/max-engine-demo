@@ -1,0 +1,56 @@
+{% load static tailwind_cli django_htmx %}<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  {# Mis à jour avec le mode choisi : les éléments dessinés par le navigateur (suggestions, calendrier) le suivent. #}
+  <meta name="color-scheme" content="light">
+  <title>{% block title %}{{ garage_name }}{% endblock %}</title>
+  <link rel="icon" href="{% static 'max-engine.ico' %}">
+  {# Mode clair ou sombre, et barre latérale repliée ou non, posés avant l'affichage pour éviter un clignotement. #}
+  <script>
+    // Classe `dark` sur <html> (la feuille de style en tire `color-scheme`), et balise meta
+    // `color-scheme` qui suit la classe, pas seulement le réglage du système. Aussi appelée
+    // par l'interrupteur de la barre latérale.
+    function appliquerTheme(sombre) {
+      var racine = document.documentElement;
+      racine.classList.toggle("dark", sombre);
+      var meta = document.querySelector('meta[name="color-scheme"]');
+      if (meta) meta.content = sombre ? "dark" : "light";
+    }
+    (function () {
+      try {
+        var choix = localStorage.getItem("theme");
+        var sombre = choix ? choix === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches;
+        appliquerTheme(sombre);
+      } catch (e) {}
+      // Fenêtre étroite : barre repliée d'office ; sinon, le dernier choix (dépliée par défaut).
+      var replie = window.matchMedia("(max-width: 1023px)").matches;
+      if (!replie) {
+        try { replie = localStorage.getItem("sidebar") === "collapsed"; } catch (e) {}
+      }
+      document.documentElement.classList.toggle("sidebar-collapsed", replie);
+    })();
+  </script>
+  {% tailwind_css %}
+  {% htmx_script %}
+  <script src="{% static 'vendor/alpine/alpine.min.js' %}" defer></script>
+</head>
+<body class="bg-page text-ink" hx-headers='{"x-csrftoken": "{{ csrf_token }}"}'>
+  {% block shell %}
+  <div class="flex min-h-screen">
+    {% include "components/sidebar.html" %}
+    <main class="min-w-0 flex-1 p-6">
+      {% if read_only %}
+      {# D79 : en consultation, chaque page le rappelle. #}
+      <p role="status" class="mb-3 flex max-w-4xl items-center gap-2 rounded-card border border-border bg-surface px-4 py-3 text-sm font-semibold">
+        {% include "components/icone.html" with name="lock" class="size-4 shrink-0" %}{{ read_only_banner }}
+      </p>
+      {% endif %}
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+  {% endblock %}
+  {% include "components/toast.html" %}
+</body>
+</html>

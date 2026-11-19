@@ -1,0 +1,5 @@
+{# Une ligne d'une liste de détails (<dl>) : `label`, `value`, `suffix` facultatif (unité). #}
+<div class="contents">
+  <dt class="text-muted">{{ label }}</dt>
+  <dd class="min-w-0 break-words">{% if value or value == 0 %}{{ value }}{% if suffix %} {{ suffix }}{% endif %}{% else %}<span class="text-muted">—</span>{% endif %}</dd>
+</div>

@@ -1,0 +1,65 @@
+{% load ui_tags %}{% comment %}
+Acomptes de la fiche véhicule : celui en cours (`active_deposit`, un `DepositDetail`), avec ses
+versements et ses actions, puis les anciens (`past_deposits`). Le bloc n'apparaît pas tant que
+le véhicule n'a reçu aucun acompte. Un acompte peut être reçu en plusieurs versements, par l'un
+ou l'autre associé (D89).
+{% endcomment %}
+{% if active_deposit or past_deposits %}
+<section aria-labelledby="titre-acompte" class="rounded-card border border-border bg-surface p-4">
+  <div class="flex flex-wrap items-center justify-between gap-2">
+    <h2 id="titre-acompte" class="flex items-center gap-2 text-base font-semibold">
+      {% include "components/icone.html" with name="cash" class="size-4" %}Acompte
+    </h2>
+    {% if active_deposit and not read_only %}
+    <div class="flex flex-wrap gap-2">
+      <a href="{% url 'sales:deposit_receipts_add' active_deposit.deposit.pk %}" class="btn-secondary">
+        {% include "components/icone.html" with name="plus" class="size-4" %}Ajouter un versement
+      </a>
+      <a href="{% url 'sales:deposit_edit' active_deposit.deposit.pk %}" class="btn-secondary">
+        {% include "components/icone.html" with name="pencil" class="size-4" %}Corriger l'acompte
+      </a>
+      <a href="{% url 'sales:deposit_cancel' active_deposit.deposit.pk %}" class="btn-secondary">
+        {% include "components/icone.html" with name="x" class="size-4" %}Annuler l'acompte
+      </a>
+    </div>
+    {% endif %}
+  </div>
+
+  {% if active_deposit %}
+  <dl class="mt-3 grid grid-cols-[max-content_1fr] gap-x-6 gap-y-2">
+    {% include "components/info.html" with label="Montant" value=active_deposit.total|euros %}
+    {% include "components/info.html" with label="Réservé le" value=active_deposit.deposit.date|date:"d/m/Y" %}
+    {% include "components/info_contact.html" with label="Acheteur" contact=active_deposit.deposit.buyer %}
+  </dl>
+  <h3 class="mt-3 text-sm font-semibold">Versements</h3>
+  <ul class="mt-1">
+    {% for receipt in active_deposit.receipts %}
+    <li class="flex flex-wrap items-center gap-2 border-t border-border py-2 text-sm first:border-t-0">
+      <span class="min-w-0 flex-1">Le {{ receipt.date|date:"d/m/Y" }}</span>
+      <span class="inline-flex min-h-6 items-center rounded-control px-2 text-xs font-semibold {{ receipt.partner.color|partner_badge }}">{{ receipt.partner.name }}</span>
+      <span class="font-semibold tabular-nums">{{ receipt.amount|euros }}</span>
+      {% if not read_only %}
+      <a href="{% url 'sales:deposit_receipt_edit' receipt.pk %}" class="inline-flex min-h-10 items-center text-accent-ink hover:underline"
+         aria-label="Corriger le versement du {{ receipt.date|date:'d/m/Y' }} ({{ receipt.partner.name }}, {{ receipt.amount|euros }})">Corriger</a>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+
+  {% if past_deposits %}
+  <h3 class="mt-3 text-sm font-semibold">Acomptes terminés</h3>
+  <ul class="mt-1">
+    {% for deposit in past_deposits %}
+    <li class="flex flex-wrap items-center gap-2 border-t border-border py-2 text-sm first:border-t-0">
+      <span class="min-w-0 flex-1">Acompte du {{ deposit.deposit.date|date:"d/m/Y" }} · <span class="font-semibold tabular-nums">{{ deposit.total|euros }}</span></span>
+      <span class="inline-flex min-h-6 items-center rounded-control px-2 text-xs font-semibold {% neutral_badge %}">{{ deposit.deposit.get_status_display }}</span>
+      {% for partner, amount in deposit.by_receiver %}
+      <span class="inline-flex min-h-6 items-center rounded-control px-2 text-xs font-semibold {{ partner.color|partner_badge }}">{{ partner.name }}{% if deposit.by_receiver|length > 1 %} · {{ amount|euros }}{% endif %}</span>
+      {% endfor %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+</section>
+{% endif %}

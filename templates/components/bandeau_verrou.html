@@ -1,0 +1,36 @@
+{% comment %}
+Bandeau de la fiche d'un véhicule vendu : dépenses verrouillées (« Rouvrir la fiche », avec une
+phrase qui explique ce que ça permet) ou fiche rouverte (motif, « Verrouiller la fiche », seul
+bouton bleu de l'écran). Rien pour un véhicule qui n'est pas vendu.
+{% endcomment %}
+{% if vehicle.status == "SOLD" %}
+<section aria-label="Verrou des dépenses" class="flex flex-col gap-2 rounded-card border border-border bg-surface p-4">
+  {% if vehicle.expenses_locked %}
+  <p class="flex items-center gap-2 font-semibold">
+    {% include "components/icone.html" with name="lock" class="size-4" %}Dépenses verrouillées
+  </p>
+  {% if not read_only %}
+  <div class="flex flex-wrap items-center gap-x-3 gap-y-2">
+    <a href="{% url 'vehicles:reopen' vehicle.number %}" class="btn-secondary" aria-describedby="aide-rouvrir">
+      {% include "components/icone.html" with name="lock-open" class="size-4" %}Rouvrir la fiche
+    </a>
+    <p id="aide-rouvrir" class="text-sm text-muted">Tu pourras corriger les dépenses. N'oublie pas de verrouiller la fiche ensuite.</p>
+  </div>
+  {% endif %}
+  {% else %}
+  <p class="flex items-center gap-2 font-semibold">
+    {% include "components/icone.html" with name="lock-open" class="size-4" %}Fiche rouverte le {{ vehicle.reopened_at|date:"d/m/Y" }}
+  </p>
+  <p class="break-words text-sm"><span class="text-muted">Motif :</span> {{ vehicle.reopen_reason }}</p>
+  {% if not read_only %}
+  <form method="post" action="{% url 'vehicles:lock' vehicle.number %}" class="flex flex-wrap items-center gap-x-3 gap-y-2">
+    {% csrf_token %}
+    <button type="submit" class="btn-primary" aria-describedby="aide-verrouiller">
+      {% include "components/icone.html" with name="lock" class="size-4" %}Verrouiller la fiche
+    </button>
+    <p id="aide-verrouiller" class="text-sm text-muted">Tu as fini de corriger ? Verrouille la fiche : les comptes ne bougeront plus par accident.</p>
+  </form>
+  {% endif %}
+  {% endif %}
+</section>
+{% endif %}

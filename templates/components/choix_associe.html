@@ -1,0 +1,20 @@
+{% comment %}
+Choix d'un seul associé en gros boutons : `field` (champ du formulaire) et `options`
+(`partner_options` de `PartnerChoiceMixin`).
+{% endcomment %}
+<fieldset class="flex flex-col gap-2"
+          {% if field.help_text or field.errors %}aria-describedby="{% if field.help_text %}aide-{{ field.html_name }}{% endif %}{% if field.errors %} erreur-{{ field.html_name }}{% endif %}"{% endif %}>
+  <legend class="mb-1 text-sm font-semibold">{{ field.label }}</legend>
+  <div class="grid gap-2 sm:grid-cols-2">
+    {% for value, label, partner in options %}
+    <label class="flex min-h-12 cursor-pointer items-center gap-3 rounded-card border border-border px-3 hover:bg-page has-[:checked]:border-accent has-[:checked]:bg-accent-bg has-[:checked]:text-accent-ink">
+      <input type="radio" name="{{ field.html_name }}" value="{{ value }}" class="size-4 accent-accent"
+             {% if field.value|stringformat:"s" == value %}checked{% endif %}>
+      {% include "components/avatar_associe.html" with partner=partner class="size-7" %}
+      <span class="font-semibold">{{ label }}</span>
+    </label>
+    {% endfor %}
+  </div>
+  {% if field.help_text %}<p id="aide-{{ field.html_name }}" class="text-xs text-muted">{{ field.help_text }}</p>{% endif %}
+  {% if field.errors %}<div id="erreur-{{ field.html_name }}">{% for error in field.errors %}<p class="text-xs text-danger">{{ error }}</p>{% endfor %}</div>{% endif %}
+</fieldset>

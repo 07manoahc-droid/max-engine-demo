@@ -1,0 +1,10 @@
+{% load ui_tags %}{# Début d'une ligne du bilan par véhicule : nom (lien vers la fiche, sauf à la corbeille), investi par chacun, coût de revient. #}
+<th scope="row" class="py-2 text-left font-normal">
+  {% if row.vehicle.is_deleted %}
+  {{ row.vehicle.display_name }} <span class="inline-flex min-h-6 items-center rounded-control px-2 text-xs font-semibold {% neutral_badge %}">À la corbeille</span>
+  {% else %}
+  <a href="{{ row.vehicle.get_absolute_url }}" class="inline-flex min-h-10 items-center hover:underline">{{ row.vehicle.display_name }}</a>
+  {% endif %}
+</th>
+{% for amount in row.invested %}<td class="py-2 text-right tabular-nums">{{ amount|euros }}</td>{% endfor %}
+<td class="py-2 text-right tabular-nums">{{ row.cost|euros }}</td>

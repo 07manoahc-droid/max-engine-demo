@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% load partials %}
+
+{% block title %}{{ title }} · {{ garage_name }}{% endblock %}
+
+{% partialdef piece %}
+{# Une pièce. Avec plusieurs lignes (`multiple`), « Retirer » la masque et coche sa case DELETE : elle n'est pas enregistrée. #}
+<div data-ligne x-data="{ retiree: {% if line.DELETE.value %}true{% else %}false{% endif %} }">
+{% if multiple %}
+<p x-show="retiree" x-cloak class="flex min-h-10 flex-wrap items-center gap-2 rounded-card border border-dashed border-border px-3 text-sm text-muted">
+  Ligne retirée{% if line.label.value %} : {{ line.label.value }}{% endif %}.
+  <button type="button" x-ref="remettre" class="inline-flex min-h-10 items-center text-accent-ink hover:underline" @click="retiree = false; $nextTick(() => { $el.closest('[data-ligne]').querySelector('input[name$=label]').focus(); })">Remettre la ligne</button>
+</p>
+{% endif %}
+<fieldset class="flex flex-col gap-3 rounded-card border border-border bg-surface p-4" x-show="!retiree" x-cloak>
+  <legend class="sr-only">La pièce</legend>
+  {% if multiple %}<input type="hidden" name="{{ line.DELETE.html_name }}" :value="retiree ? 'on' : ''" value="{% if line.DELETE.value %}on{% endif %}">{% endif %}
+  {% for error in line.non_field_errors %}<p class="text-sm text-danger" role="alert">{{ error }}</p>{% endfor %}
+  {# Grand écran : désignation, quantité, prix sur une rangée ; référence et véhicule sur la suivante. #}
+  <div class="grid grid-cols-2 gap-3 lg:grid-cols-[minmax(0,1fr)_6rem_8rem]">
+    <div class="col-span-2 lg:col-span-1">
+      {% include "components/champ_formulaire.html" with field=line.label %}
+    </div>
+    {% include "components/champ_formulaire.html" with field=line.quantity %}
+    {% include "components/champ_formulaire.html" with field=line.unit_price %}
+  </div>
+  <div class="grid gap-3 sm:grid-cols-2">
+    {% include "components/champ_formulaire.html" with field=line.reference %}
+    {% include "components/champ_formulaire.html" with field=line.vehicle hide_optional=True %}
+  </div>
+  {% if multiple %}
+  <button type="button" class="inline-flex min-h-10 items-center gap-1 self-start text-sm text-danger hover:underline" @click="retiree = true; $nextTick(() => { $refs.remettre.focus(); })"
+          aria-describedby="{{ line.label.auto_id }}">
+    {% include "components/icone.html" with name="x" class="size-4" %}Retirer la ligne
+  </button>
+  {% endif %}
+</fieldset>
+</div>
+{% endpartialdef %}
+
+{% block content %}
+<div class="flex max-w-4xl flex-col gap-3" x-data="{ envoi: false }">
+  <a href="{{ back_url }}" class="inline-flex min-h-10 items-center gap-1 self-start text-sm text-accent-ink hover:underline">
+    {% include "components/icone.html" with name="arrow-left" class="size-4" %}Retour
+  </a>
+
+  <div>
+    <h1 class="text-xl font-semibold">{{ title }}</h1>
+    <p class="mt-1 text-muted">Elles ne comptent dans aucun calcul tant que leur commande n'est pas enregistrée.</p>
+  </div>
+
+  <form method="post" novalidate class="flex flex-col gap-3" @submit="envoi = true">
+    {% csrf_token %}
+    {% if formset %}
+    <div class="flex flex-col gap-3"
+         x-data="{
+           total: {{ formset.total_form_count }},
+           ajouter() {
+             // La ligne précédente encore gardée (pas retirée) : la nouvelle reprend son véhicule.
+             const precedente = [...this.$refs.lignes.querySelectorAll('[data-ligne]')].reverse()
+               .find((ligne) => ligne.querySelector('input[name$=DELETE]').value !== 'on');
+             const html = this.$refs.modele.innerHTML.replaceAll('__prefix__', this.total);
+             this.$refs.lignes.insertAdjacentHTML('beforeend', html);
+             this.total++;
+             document.getElementById('id_lignes-TOTAL_FORMS').value = this.total;
+             const nouvelle = this.$refs.lignes.lastElementChild;
+             this.$nextTick(() => {
+               const source = precedente && precedente.querySelector('select[name$=vehicle]');
+               const cible = nouvelle.querySelector('select[name$=vehicle]');
+               if (source && cible && [...cible.options].some((option) => option.value === source.value)) {
+                 cible.value = source.value;
+               }
+               nouvelle.querySelector('input[name$=label]').focus();
+             });
+           }
+         }">
+      {{ formset.management_form }}
+      {% for error in formset.non_form_errors %}<p class="text-sm text-danger" role="alert">{{ error }}</p>{% endfor %}
+      <div x-ref="lignes" class="flex flex-col gap-3">
+        {% for line in formset %}{% with multiple=True %}{% partial piece %}{% endwith %}{% endfor %}
+      </div>
+      <template x-ref="modele">{% with line=formset.empty_form multiple=True %}{% partial piece %}{% endwith %}</template>
+      <button type="button" class="btn-secondary self-start" @click="ajouter()">
+        {% include "components/icone.html" with name="plus" class="size-4" %}Ajouter une ligne
+      </button>
+      <p class="text-xs text-muted">Les lignes laissées vides sont ignorées.</p>
+    </div>
+    {% else %}
+    {% with line=form %}{% partial piece %}{% endwith %}
+    {% endif %}
+    <div class="flex flex-wrap gap-2">
+      <button type="submit" class="btn-primary" :disabled="envoi" :aria-disabled="envoi.toString()">{% if formset %}Enregistrer les pièces{% else %}Enregistrer la pièce{% endif %}</button>
+      <a href="{{ back_url }}" class="btn-secondary">Annuler</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

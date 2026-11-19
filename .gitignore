@@ -1,0 +1,32 @@
+# Données réelles du garage : jamais dans Git
+donnees/
+media/
+sauvegardes/
+*.sqlite3
+*.sqlite3-journal
+*.sqlite3-wal
+*.sqlite3-shm
+.env
+
+# Python et uv
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Django
+staticfiles/
+
+# Éditeurs et système
+.vscode/*
+!.vscode/extensions.json
+.idea/
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Binaire Tailwind téléchargé par django-tailwind-cli
+.django_tailwind_cli/

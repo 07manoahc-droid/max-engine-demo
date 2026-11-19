@@ -1,0 +1,151 @@
+{% comment %}
+Barre latérale repliable : repliée, elle n'affiche que les icônes (nom en infobulle).
+L'état replié est la classe `sidebar-collapsed` de la balise html, posée dès l'affichage par
+base.html ; le choix est mémorisé dans localStorage, et une fenêtre devenue étroite replie la barre.
+{% endcomment %}
+{% load ui_tags %}
+<aside id="barre-laterale"
+       x-data="{
+         replie: document.documentElement.classList.contains('sidebar-collapsed'),
+         appliquer(replie) {
+           this.replie = replie;
+           document.documentElement.classList.toggle('sidebar-collapsed', replie);
+         },
+         basculer() {
+           this.appliquer(!this.replie);
+           try { localStorage.setItem('sidebar', this.replie ? 'collapsed' : 'open'); } catch (e) {}
+         },
+         init() {
+           window.matchMedia('(max-width: 1023px)').addEventListener('change', (e) => { if (e.matches) this.appliquer(true); });
+         }
+       }"
+       class="sticky top-0 flex h-screen w-[178px] shrink-0 flex-col gap-4 overflow-y-auto border-r border-border bg-sidebar p-3 collapsed:w-16 collapsed:px-2">
+  <div class="flex items-center gap-2 px-1 pt-1 collapsed:flex-col collapsed:px-0">
+    <span class="grid size-8 shrink-0 place-items-center rounded-control bg-accent text-white">
+      {% include "components/icone.html" with name="engine" class="size-5" %}
+    </span>
+    <span class="min-w-0 truncate font-semibold collapsed:sr-only">{{ garage_name }}</span>
+  </div>
+
+  <nav aria-label="Navigation principale" class="flex flex-col gap-1">
+    <a href="{% url 'core:home' %}" :title="replie ? 'Accueil' : null"
+       {% if request.resolver_match.view_name == 'core:home' %}aria-current="page"{% endif %}
+       class="flex min-h-10 items-center gap-2 rounded-control px-2 text-sm collapsed:justify-center {% if request.resolver_match.view_name == 'core:home' %}bg-accent-bg font-semibold text-accent-ink{% else %}hover:bg-page{% endif %}">
+      {% include "components/icone.html" with name="home" class="size-4" %}<span class="collapsed:sr-only">Accueil</span>
+    </a>
+    <a href="{% url 'vehicles:list' %}" :title="replie ? 'Au garage' : null"
+       {% if request.resolver_match.view_name == 'vehicles:list' %}aria-current="page"{% endif %}
+       class="flex min-h-10 items-center gap-2 rounded-control px-2 text-sm collapsed:justify-center {% if request.resolver_match.view_name == 'vehicles:list' %}bg-accent-bg font-semibold text-accent-ink{% else %}hover:bg-page{% endif %}">
+      {% include "components/icone.html" with name="motorbike" class="size-4" %}<span class="collapsed:sr-only">Au garage</span>
+    </a>
+    {% with nombre=sidebar_parts_to_order.count %}
+    <a href="{% url 'expenses:parts_to_order' %}" :title="replie ? 'À commander{% if nombre %} : {{ nombre }}{% endif %}' : null"
+       {% if request.resolver_match.view_name == 'expenses:parts_to_order' %}aria-current="page"{% endif %}
+       class="relative flex min-h-10 items-center gap-2 rounded-control px-2 text-sm collapsed:justify-center {% if request.resolver_match.view_name == 'expenses:parts_to_order' %}bg-accent-bg font-semibold text-accent-ink{% else %}hover:bg-page{% endif %}">
+      {% include "components/icone.html" with name="shopping-cart" class="size-4" %}<span class="whitespace-nowrap collapsed:sr-only">À commander</span>
+      {% if nombre %}
+      <span class="ml-auto inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-control px-1 text-[11px] leading-none font-semibold {{ "TO_ORDER"|part_status_badge }} collapsed:absolute collapsed:-right-1 collapsed:-top-1 collapsed:ml-0">
+        {{ nombre }}<span class="sr-only"> pièce{{ nombre|pluralize }} à commander</span>
+      </span>
+      {% endif %}
+    </a>
+    {% endwith %}
+    <a href="{% url 'vehicles:sold' %}" :title="replie ? 'Vendus' : null"
+       {% if request.resolver_match.view_name == 'vehicles:sold' %}aria-current="page"{% endif %}
+       class="flex min-h-10 items-center gap-2 rounded-control px-2 text-sm collapsed:justify-center {% if request.resolver_match.view_name == 'vehicles:sold' %}bg-accent-bg font-semibold text-accent-ink{% else %}hover:bg-page{% endif %}">
+      {% include "components/icone.html" with name="circle-check" class="size-4" %}<span class="collapsed:sr-only">Vendus</span>
+    </a>
+    <a href="{% url 'vehicles:abandoned' %}" :title="replie ? 'Abandonnés' : null"
+       {% if request.resolver_match.view_name == 'vehicles:abandoned' %}aria-current="page"{% endif %}
+       class="flex min-h-10 items-center gap-2 rounded-control px-2 text-sm collapsed:justify-center {% if request.resolver_match.view_name == 'vehicles:abandoned' %}bg-accent-bg font-semibold text-accent-ink{% else %}hover:bg-page{% endif %}">
+      {% include "components/icone.html" with name="circle-x" class="size-4" %}<span class="collapsed:sr-only">Abandonnés</span>
+    </a>
+    {# Contacts (D81) : la liste, la fiche et le formulaire allument le lien. #}
+    {% with page=request.resolver_match %}
+    <a href="{% url 'core:contacts' %}" :title="replie ? 'Contacts' : null"
+       {% if page.app_name == 'core' and page.url_name|slice:':7' == 'contact' %}aria-current="page"{% endif %}
+       class="flex min-h-10 items-center gap-2 rounded-control px-2 text-sm collapsed:justify-center {% if page.app_name == 'core' and page.url_name|slice:':7' == 'contact' %}bg-accent-bg font-semibold text-accent-ink{% else %}hover:bg-page{% endif %}">
+      {% include "components/icone.html" with name="users" class="size-4" %}<span class="collapsed:sr-only">Contacts</span>
+    </a>
+    {% endwith %}
+    {# Toutes les pages des comptes (solde, règlement, annulation) allument « Comptes », sauf le bilan. #}
+    {% with vue=request.resolver_match.view_name %}
+    {% with comptes=request.resolver_match.app_name %}
+    <a href="{% url 'accounting:accounts' %}" :title="replie ? 'Comptes' : null"
+       {% if comptes == 'accounting' and vue != 'accounting:report' %}aria-current="page"{% endif %}
+       class="flex min-h-10 items-center gap-2 rounded-control px-2 text-sm collapsed:justify-center {% if comptes == 'accounting' and vue != 'accounting:report' %}bg-accent-bg font-semibold text-accent-ink{% else %}hover:bg-page{% endif %}">
+      {% include "components/icone.html" with name="scale" class="size-4" %}<span class="collapsed:sr-only">Comptes</span>
+    </a>
+    {% endwith %}
+    <a href="{% url 'accounting:report' %}" :title="replie ? 'Bilan' : null"
+       {% if vue == 'accounting:report' %}aria-current="page"{% endif %}
+       class="flex min-h-10 items-center gap-2 rounded-control px-2 text-sm collapsed:justify-center {% if vue == 'accounting:report' %}bg-accent-bg font-semibold text-accent-ink{% else %}hover:bg-page{% endif %}">
+      {% include "components/icone.html" with name="chart-bar" class="size-4" %}<span class="collapsed:sr-only">Bilan</span>
+    </a>
+    {% endwith %}
+  </nav>
+
+  <section aria-labelledby="sidebar-garage" class="flex flex-col gap-1 collapsed:hidden">
+    <h2 id="sidebar-garage" class="px-2 text-xs font-semibold text-muted">En cours</h2>
+    {% for vehicle in garage_vehicles %}
+    {% url 'vehicles:detail' vehicle.number as adresse_fiche %}
+    <a href="{{ adresse_fiche }}"
+       {% if request.path == adresse_fiche %}aria-current="page"{% endif %}
+       class="flex min-h-10 items-center gap-2 rounded-control px-2 text-sm {% if request.path == adresse_fiche %}bg-accent-bg font-semibold text-accent-ink{% else %}hover:bg-page{% endif %}">
+      {% include "components/pastille_statut.html" with status=vehicle.status %}
+      <span class="truncate">{{ vehicle.display_name }}</span>
+    </a>
+    {% empty %}
+    <p class="px-2 text-xs text-muted">Aucun véhicule au garage. Ajoute le premier.</p>
+    {% endfor %}
+  </section>
+
+  <div class="mt-auto flex flex-col gap-1">
+    {# Journal (D78) et corbeille (D74) : des liens discrets, en gris, au-dessus de la sauvegarde. #}
+    <a href="{% url 'core:journal' %}" :title="replie ? 'Journal' : null"
+       {% if request.resolver_match.view_name == 'core:journal' %}aria-current="page"{% endif %}
+       class="flex min-h-10 items-center gap-2 rounded-control px-2 text-sm collapsed:justify-center {% if request.resolver_match.view_name == 'core:journal' %}bg-accent-bg font-semibold text-accent-ink{% else %}text-muted hover:bg-page{% endif %}">
+      {% include "components/icone.html" with name="history" class="size-4" %}<span class="collapsed:sr-only">Journal</span>
+    </a>
+    <a href="{% url 'core:trash' %}" :title="replie ? 'Corbeille' : null"
+       {% if request.resolver_match.view_name == 'core:trash' %}aria-current="page"{% endif %}
+       class="flex min-h-10 items-center gap-2 rounded-control px-2 text-sm collapsed:justify-center {% if request.resolver_match.view_name == 'core:trash' %}bg-accent-bg font-semibold text-accent-ink{% else %}text-muted hover:bg-page{% endif %}">
+      {% include "components/icone.html" with name="trash" class="size-4" %}<span class="collapsed:sr-only">Corbeille</span>
+    </a>
+    {# Dernière sauvegarde (D73) : en ambre si elle date de plus de 2 jours, manque ou a échoué. #}
+    {% if not read_only %}
+    {% with sauvegarde=last_backup %}
+    <p id="derniere-sauvegarde" class="px-2 text-xs collapsed:hidden {% if sauvegarde.warning %}rounded-control py-1 font-semibold {% warning_badge %}{% else %}text-muted{% endif %}">{{ sauvegarde.text }}</p>
+    {% if sauvegarde.warning %}
+    {# Menu replié : une icône d'alerte seule, le texte en infobulle et pour le lecteur d'écran. #}
+    <span id="alerte-sauvegarde" title="{{ sauvegarde.text }}" class="hidden min-h-10 items-center justify-center {% warning_text %} collapsed:flex">
+      {% include "components/icone.html" with name="alert-triangle" class="size-4" %}<span class="sr-only">{{ sauvegarde.text }}</span>
+    </span>
+    {% endif %}
+    {% endwith %}
+    {% endif %}
+    {% if current_partner %}
+    <div class="flex items-center gap-2 px-2 py-1 collapsed:hidden">
+      {% include "components/avatar_associe.html" with partner=current_partner %}
+      <div class="min-w-0">
+        <p class="truncate text-sm font-semibold">{{ current_partner.name }}</p>
+        <a href="{% url 'core:choose_partner' %}" aria-label="Changer d'associé" class="inline-flex min-h-10 items-center text-xs text-accent-ink hover:underline">Changer</a>
+      </div>
+    </div>
+    {# Repliée : l'avatar seul, qui mène au changement d'associé. #}
+    <a href="{% url 'core:choose_partner' %}" title="{{ current_partner.name }} : changer d'associé"
+       aria-label="{{ current_partner.name }} : changer d'associé"
+       class="hidden min-h-10 items-center justify-center rounded-control hover:bg-page collapsed:flex">
+      {% include "components/avatar_associe.html" with partner=current_partner %}
+    </a>
+    {% endif %}
+    {% include "components/interrupteur_theme.html" %}
+    <button type="button" @click="basculer()"
+            :title="replie ? 'Déplier le menu' : null"
+            :aria-expanded="(!replie).toString()" aria-controls="barre-laterale"
+            class="flex min-h-10 w-full items-center gap-2 rounded-control px-2 text-sm text-muted hover:bg-page collapsed:justify-center">
+      {% include "components/icone.html" with name="layout-sidebar" class="size-4" %}
+      <span class="collapsed:sr-only" x-text="replie ? 'Déplier le menu' : 'Replier le menu'">Replier le menu</span>
+    </button>
+  </div>
+</aside>

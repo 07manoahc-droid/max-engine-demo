@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% load partials ui_tags %}
+{% comment %}
+  Contacts (D81) : vendeurs et clients, avec ce qu'ils ont fait pour le garage. La recherche
+  filtre pendant la frappe (HTMX) ; sans JavaScript, « Chercher » envoie le formulaire.
+{% endcomment %}
+
+{% block title %}Contacts · {{ garage_name }}{% endblock %}
+
+{% block content %}
+<div class="flex max-w-4xl flex-col gap-3">
+  <header class="flex flex-wrap items-center justify-between gap-3">
+    <h1 class="text-xl font-semibold">Contacts</h1>
+    {% if not read_only %}
+    <a href="{% url 'core:contact_create' %}" class="btn-primary">
+      {% include "components/icone.html" with name="plus" class="size-4" %}Ajouter un contact
+    </a>
+    {% endif %}
+  </header>
+
+  {% url 'core:contacts' as adresse_liste %}
+  <form method="get" action="{{ adresse_liste }}" role="search" class="flex flex-wrap items-end gap-3 rounded-card border border-border bg-surface p-4">
+    <div class="flex min-w-0 flex-1 flex-col gap-1">
+      <label for="recherche-contact" class="text-sm font-semibold">Chercher un contact</label>
+      <input id="recherche-contact" type="search" name="q" value="{{ query }}" autocomplete="off"
+             placeholder="Nom, téléphone ou ville" class="field-input"
+             hx-get="{{ adresse_liste }}" hx-trigger="input changed delay:300ms, search"
+             hx-target="#liste-contacts" hx-swap="innerHTML" hx-push-url="true">
+    </div>
+    <button type="submit" class="btn-secondary">
+      {% include "components/icone.html" with name="search" class="size-4" %}Chercher
+    </button>
+  </form>
+
+  {% comment %}
+    La recherche (HTMX) renvoie `resultats` : le compte, posé dans sa zone fixe (lue par un
+    lecteur d'écran à chaque changement), et la liste, mise dans son conteneur fixe.
+  {% endcomment %}
+  {% partialdef compte %}{% if rows %}{{ rows|length }} contact{{ rows|length|pluralize }}{% if query %} pour « {{ query }} »{% endif %}{% elif query %}Aucun contact ne correspond à « {{ query }} ». Essaie une partie du nom, ou le téléphone sans espaces.{% endif %}{% endpartialdef %}
+
+  {% partialdef liste %}
+  {% if rows %}
+  <ul class="mt-2">
+    {% for contact, roles in rows %}
+    <li class="flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-border py-3 first:border-t-0">
+      <div class="min-w-0 flex-1">
+        <a href="{% url 'core:contact_detail' contact.pk %}" class="inline-flex min-h-10 items-center break-words font-semibold text-accent-ink hover:underline">{{ contact.name }}</a>
+        {% if contact.phone or contact.city %}
+        <p class="break-words text-sm text-muted">{{ contact.phone }}{% if contact.phone and contact.city %} · {% endif %}{{ contact.city }}</p>
+        {% endif %}
+      </div>
+      {% if roles %}
+      <ul class="flex flex-wrap gap-2" aria-label="Rôles de {{ contact.name }}">
+        {% for role in roles %}
+        <li class="inline-flex min-h-6 items-center rounded-control px-2 text-xs font-semibold {% neutral_badge %}">{{ role.text }}{% if role.note %} ({{ role.note }}){% endif %}</li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% elif not query %}
+  <p class="text-muted">Aucun contact pour l'instant. Ils s'ajoutent aussi depuis un achat ou une vente.</p>
+  {% endif %}
+  {% endpartialdef %}
+
+  {% partialdef resultats %}
+  <p id="compte-contacts" hx-swap-oob="innerHTML">{% partial compte %}</p>
+  {% partial liste %}
+  {% endpartialdef %}
+
+  <section aria-label="Liste des contacts" class="rounded-card border border-border bg-surface p-4">
+    <p id="compte-contacts" role="status" class="text-sm text-muted">{% partial compte %}</p>
+    <div id="liste-contacts">{% partial liste %}</div>
+  </section>
+</div>
+{% endblock %}

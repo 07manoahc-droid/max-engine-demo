@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% load partials ui_tags %}
+
+{% block title %}Véhicules au garage · {{ garage_name }}{% endblock %}
+
+{% block content %}
+<div class="flex max-w-6xl flex-col gap-3">
+  <header class="flex flex-wrap items-center justify-between gap-3">
+    <h1 class="text-xl font-semibold">Véhicules au garage</h1>
+    {% if not read_only %}
+    <a href="{% url 'vehicles:create' %}" class="btn-primary">
+      {% include "components/icone.html" with name="plus" class="size-4" %}Ajouter un véhicule
+    </a>
+    {% endif %}
+  </header>
+
+  {% partialdef grille inline %}
+  {# Filtres et cartes : renvoyés seuls quand on change de filtre (HTMX). #}
+  <div id="grille" class="flex flex-col gap-3">
+    {% if status_counts %}
+    {% url 'vehicles:list' as adresse_liste %}
+    <nav aria-label="Filtrer par statut" class="flex flex-wrap gap-2">
+      <a href="{{ adresse_liste }}" hx-get="{{ adresse_liste }}" hx-target="#grille" hx-swap="outerHTML" hx-push-url="true"
+         {% if not current_status %}aria-current="true"{% endif %}
+         class="inline-flex min-h-10 items-center gap-2 rounded-control border px-3 text-sm font-semibold {% if not current_status %}border-accent bg-accent-bg text-accent-ink{% else %}border-border bg-surface hover:bg-page{% endif %}">
+        Tous <span class="text-xs font-normal">{{ total_count }}</span>
+      </a>
+      {% for status, count in status_counts %}
+      <a href="{{ adresse_liste }}?statut={{ status }}" hx-get="{{ adresse_liste }}?statut={{ status }}" hx-target="#grille" hx-swap="outerHTML" hx-push-url="true"
+         {% if current_status == status %}aria-current="true"{% endif %}
+         class="inline-flex min-h-10 items-center gap-2 rounded-control border px-2 text-sm {% if current_status == status %}border-accent ring-1 ring-accent{% else %}border-border hover:bg-page{% endif %} bg-surface">
+        {% include "components/badge_statut.html" with status=status %}
+        <span class="text-xs text-muted">{{ count }}</span>
+      </a>
+      {% endfor %}
+    </nav>
+    {% endif %}
+
+    {% if cards %}
+    <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+      {% for card in cards %}
+      {% include "components/carte_vehicule.html" with card=card %}
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="flex flex-col items-start gap-3 rounded-card border border-border bg-surface p-4">
+      <p>Aucun véhicule au garage. Ajoute le premier.</p>
+      {% if not read_only %}
+      <a href="{% url 'vehicles:create' %}" class="btn-secondary">Ajouter un véhicule</a>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+  {% endpartialdef %}
+</div>
+{% endblock %}

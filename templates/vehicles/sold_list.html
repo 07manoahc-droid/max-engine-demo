@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block title %}Véhicules vendus · {{ garage_name }}{% endblock %}
+
+{% block content %}
+<div class="flex max-w-6xl flex-col gap-3">
+  <header>
+    <h1 class="text-xl font-semibold">Véhicules vendus</h1>
+  </header>
+
+  {% if cards %}
+  <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+    {% for card in cards %}
+    {% include "components/carte_vehicule_vendu.html" with card=card %}
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="flex flex-col items-start gap-3 rounded-card border border-border bg-surface p-4">
+    <p>Aucun véhicule vendu pour l'instant. Une vente enregistrée apparaîtra ici.</p>
+    <a href="{% url 'vehicles:list' %}" class="btn-secondary">Voir les véhicules au garage</a>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

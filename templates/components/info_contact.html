@@ -1,0 +1,13 @@
+{# Ligne d'une liste d'informations : `label` et `contact` (nom, puis téléphone et ville). #}
+<div class="contents">
+  <dt class="text-muted">{{ label }}</dt>
+  <dd class="min-w-0 break-words">
+    {% if contact %}
+    {# D81 : le nom mène à la fiche du contact ; un contact à la corbeille reste nommé. #}
+    {% if contact.deleted_at %}{{ contact.name }} <span class="text-muted">(à la corbeille)</span>{% else %}<a href="{% url 'core:contact_detail' contact.pk %}" class="text-accent-ink hover:underline">{{ contact.name }}</a>{% endif %}
+    {% if contact.phone or contact.city %}
+    <span class="block text-xs text-muted">{{ contact.phone }}{% if contact.phone and contact.city %} · {% endif %}{{ contact.city }}</span>
+    {% endif %}
+    {% else %}<span class="text-muted">—</span>{% endif %}
+  </dd>
+</div>

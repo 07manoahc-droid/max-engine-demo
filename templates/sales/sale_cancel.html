@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% load ui_tags %}
+
+{% block title %}Annuler la vente · {{ garage_name }}{% endblock %}
+
+{% block content %}
+<div class="flex max-w-xl flex-col gap-3" x-data="{ envoi: false }">
+  <a href="{{ vehicle.get_absolute_url }}" class="inline-flex min-h-10 items-center gap-1 self-start text-sm text-accent-ink hover:underline">
+    {% include "components/icone.html" with name="arrow-left" class="size-4" %}Retour
+  </a>
+
+  <div>
+    <h1 class="text-xl font-semibold">Annuler la vente</h1>
+    <p class="mt-1 break-words text-muted">{{ vehicle.display_name }}, vendu {{ sale.price|euros }} le {{ sale.date|date:"d/m/Y" }}.</p>
+  </div>
+
+  <form method="post" novalidate class="flex flex-col gap-3" @submit="envoi = true">
+    {% csrf_token %}
+    {% for error in form.non_field_errors %}
+    <p class="text-sm text-danger" role="alert">{{ error }}</p>
+    {% endfor %}
+
+    <section class="flex flex-col gap-3 rounded-card border border-border bg-surface p-4">
+      <h2 class="text-base font-semibold">Ce qui va se passer</h2>
+      <ul class="flex list-disc flex-col gap-1 pl-5 text-sm">
+        <li>Les encaissements ne compteront plus :{% for receipt in receipts %} {{ receipt.partner.name }} {{ receipt.amount|euros }}{% if not forloop.last %},{% endif %}{% empty %} il n'y en a aucun{% endfor %}.</li>
+        <li>L'argent rendu à l'acheteur n'est pas une dépense : tu n'as rien d'autre à saisir.</li>
+        <li>Le véhicule reviendra en {% include "components/badge_statut.html" with status="FOR_SALE" %}</li>
+        {% if sale.trade_in_vehicle %}
+        <li>{{ sale.trade_in_vehicle.display_name }}, repris pour {{ sale.trade_in_value|euros }}, partira à la corbeille avec sa dépense d'achat et ses photos. Il quittera le garage et ne comptera plus dans les comptes.</li>
+        {% endif %}
+        <li>La vente annulée restera visible sur la fiche.</li>
+      </ul>
+      {% if form %}
+      {% include "components/devenir_acompte.html" with legend="Qu'est devenu l'acompte ?" %}
+      {% endif %}
+    </section>
+
+    <div class="flex flex-wrap gap-2">
+      <button type="submit" class="btn-danger" :disabled="envoi" :aria-disabled="envoi.toString()">Annuler la vente</button>
+      <a href="{{ vehicle.get_absolute_url }}" class="btn-secondary">Retour</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

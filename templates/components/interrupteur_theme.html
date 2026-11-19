@@ -1,0 +1,16 @@
+<button type="button"
+        x-data="{
+          dark: document.documentElement.classList.contains('dark'),
+          toggle() {
+            this.dark = !this.dark;
+            appliquerTheme(this.dark);
+            try { localStorage.setItem('theme', this.dark ? 'dark' : 'light'); } catch (e) {}
+          }
+        }"
+        @click="toggle()"
+        :title="dark ? 'Mode clair' : 'Mode sombre'"
+        class="flex min-h-10 w-full items-center gap-2 rounded-control px-2 text-sm text-muted hover:bg-page collapsed:justify-center">
+  <span x-show="!dark" x-cloak>{% include "components/icone.html" with name="moon" class="size-4" %}</span>
+  <span x-show="dark" x-cloak>{% include "components/icone.html" with name="sun" class="size-4" %}</span>
+  <span class="collapsed:sr-only" x-text="dark ? 'Mode clair' : 'Mode sombre'">Mode sombre</span>
+</button>

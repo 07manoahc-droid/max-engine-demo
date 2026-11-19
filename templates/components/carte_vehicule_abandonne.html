@@ -1,0 +1,43 @@
+{% load ui_tags %}{# Carte d'un véhicule abandonné (D59) : `item` = {card (queries.AbandonedCard), cover (photo ou None), shares : [(associé, montant sans signe)]}. Montants sans signe, déjà calculés par `accounting`. #}
+{% with card=item.card loss=item.card.loss %}
+<a href="{{ card.vehicle.get_absolute_url }}"
+   class="flex flex-col overflow-hidden rounded-card border border-border bg-surface hover:border-accent">
+  {% if item.cover %}
+  <img src="{{ item.cover|thumbnail_url }}" alt="" loading="lazy" class="aspect-[16/9] w-full bg-page object-cover">
+  {% else %}
+  <div class="grid aspect-[16/9] place-items-center bg-page text-muted" aria-hidden="true">
+    {% include "components/icone.html" with name="motorbike" class="size-12" %}
+  </div>
+  {% endif %}
+  <div class="flex flex-1 flex-col gap-3 p-4">
+    <div class="flex flex-col items-start gap-1">
+      <h2 class="text-base font-semibold break-words">{{ card.vehicle.display_name }}</h2>
+      <p class="text-xs text-muted">{% if card.abandoned_on %}Abandonné le {{ card.abandoned_on|date:"d/m/Y" }}{% else %}Abandonné{% endif %}</p>
+    </div>
+    <div class="grid grid-cols-2 gap-2">
+      <div>
+        <p class="text-[11px] font-semibold text-muted">Coût de revient</p>
+        <p class="text-[17px] font-semibold leading-tight">{{ loss.cost|euros }}</p>
+      </div>
+      <div>
+        {# Un acompte conservé plus grand que le coût donne un gain : le titre le suit. #}
+        <p class="text-[11px] font-semibold text-muted">{% if loss.result.shown_margin and not loss.result.is_loss %}Gain{% else %}Perte{% endif %}</p>
+        <p class="text-[17px] font-semibold leading-tight">{% if loss.result.shown_margin %}{{ loss.result.shown_margin|euros }}{% else %}Aucune perte{% endif %}</p>
+      </div>
+    </div>
+    {% if loss.kept_deposits %}
+    <p class="text-xs text-muted">Acompte conservé déduit : {{ loss.kept_deposits|euros }}</p>
+    {% endif %}
+    {% if item.shares and loss.result.shown_margin %}
+    <div class="mt-auto grid grid-cols-2 gap-2">
+      {% for partner, amount in item.shares %}
+      <div class="rounded-control px-2 py-1 {{ partner.color|partner_badge }}">
+        <p class="text-[11px] font-semibold">{% if loss.result.is_loss %}Perte pour{% else %}Pour{% endif %} {{ partner.name }}</p>
+        <p class="text-sm font-semibold">{{ amount|euros }}</p>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+</a>
+{% endwith %}
